@@ -36,6 +36,8 @@ class TaskManager:
             assignee = config.get("assignee")
             space_ref = config.get("space_ref")
             description = config.get("description", "")
+            agent_config = config.get("agent_config")  # エージェント設定
+            company_agent_defaults = config.get("company_agent_defaults")  # 会社デフォルト設定
             
             logger.info(f"Creating task: {name} (branch: {branch}, assignee: {assignee})")
             
@@ -51,12 +53,18 @@ class TaskManager:
                 "status": "created",
                 "worktree_created": worktree and space_ref,
                 "assignee": assignee,
-                "description": description
+                "description": description,
+                "agent_config": agent_config
             }
             
             # IMPORTANT: Create agent assignment log immediately after task creation
             if assignee and worktree and space_ref:
                 self._create_immediate_agent_assignment_log(name, assignee, space_ref, description)
+                
+                # Claude Code統合: .claude/settings.local.json の作成
+                if agent_config or company_agent_defaults:
+                    logger.info(f"🔧 Setting up Claude Code integration for {assignee}...")
+                    self._create_claude_code_settings(name, space_ref, company_agent_defaults, agent_config)
             
             logger.info(f"✅ Created task: {name}")
             if worktree and space_ref:
@@ -130,13 +138,31 @@ class TaskManager:
     
     def _find_space_base_path(self, space_ref: str) -> Path:
         """Find base path for space reference"""
-        # Heuristic: look for common space patterns
+        # Strategy 1: Get from SpaceManager active sessions (most reliable)
+        try:
+            from ..space.manager import SpaceManager
+            space_manager = SpaceManager()
+            
+            # Check active sessions for matching space
+            for session_name, session_info in space_manager.active_sessions.items():
+                config = session_info.get("config", {})
+                # Check if this session matches our space_ref
+                if (config.get("name") == space_ref or 
+                    session_name == space_ref):
+                    base_path = Path(config.get("base_path", f"./{session_name}"))
+                    if base_path.exists() and (base_path / "tasks").exists():
+                        logger.info(f"Found space base path from SpaceManager: {base_path}")
+                        return base_path
+        except Exception as e:
+            logger.debug(f"Could not get base path from SpaceManager: {e}")
+        
+        # Strategy 2: Standard naming patterns (space_ref based)
         candidates = [
             Path(f"./{space_ref}"),
             Path(f"./{space_ref}-desks"),
             Path(f"./test-{space_ref}"),
             Path(f"./test-{space_ref}-desks"),
-            # Additional patterns for multiroom spaces
+            # Additional patterns for company-style spaces
             Path(f"./{space_ref.replace('-company', '-desks')}"),
             Path(f"./test-{space_ref.replace('-company', '-desks')}"),
             Path(f"./{space_ref.replace('company', 'desks')}"),
@@ -144,17 +170,34 @@ class TaskManager:
         
         for candidate in candidates:
             if candidate.exists() and (candidate / "tasks").exists():
-                logger.info(f"Found space base path: {candidate}")
+                logger.info(f"Found space base path via pattern matching: {candidate}")
                 return candidate
+        
+        # Strategy 3: Scan all directories for tasks subdirectory (fallback)
+        logger.debug(f"Scanning current directory for any directory with 'tasks' subdirectory...")
+        current_dirs = [p for p in Path(".").iterdir() if p.is_dir()]
+        for dir_path in current_dirs:
+            if (dir_path / "tasks").exists():
+                # Additional validation: check if it looks like a haconiwa workspace
+                tasks_dir = dir_path / "tasks"
+                if (tasks_dir / "main").exists() or any(tasks_dir.iterdir()):
+                    logger.info(f"Found space base path via directory scan: {dir_path}")
+                    return dir_path
         
         # Debug: list what actually exists
         logger.debug(f"Searching for space: {space_ref}")
         logger.debug(f"Checked candidates: {[str(c) for c in candidates]}")
-        current_dirs = [p for p in Path(".").iterdir() if p.is_dir()]
         logger.debug(f"Available directories: {[p.name for p in current_dirs]}")
         
         logger.warning(f"Could not find base path for space: {space_ref}")
         return None
+    
+    def _get_session_name_from_space_ref(self, space_ref: str) -> str:
+        """Get actual session name from space reference"""
+        # For most cases, the space_ref is actually the company name, which is the session name
+        # But we need to handle world-based naming where space_ref might be different
+        # For now, return space_ref as it should be the company name
+        return space_ref
     
     def list_tasks(self) -> Dict[str, Any]:
         """List all tasks"""
@@ -600,11 +643,15 @@ class TaskManager:
             # Agent assignment log file
             log_file = haconiwa_dir / "agent_assignment.json"
             
+            # Get the actual session name (company name) instead of using space_ref directly
+            # For haconiwa-world, the session name is the company name
+            session_name = self._get_session_name_from_space_ref(space_ref)
+            
             # Prepare assignment information (without tmux pane info for now)
             assignment_info = {
                 "agent_id": assignee,
                 "task_name": task_name,
-                "space_session": space_ref,
+                "space_session": session_name,  # Use actual session name
                 "tmux_window": None,  # Will be set when pane is found
                 "tmux_pane": None,    # Will be set when pane is found
                 "assigned_at": datetime.now().isoformat(),
@@ -627,4 +674,41 @@ class TaskManager:
             
         except Exception as e:
             logger.error(f"Failed to create immediate agent assignment log: {e}")
+            return False
+    
+    def _create_claude_code_settings(self, task_name: str, space_ref: str, company_agent_defaults: Dict[str, Any], agent_config: Dict[str, Any]) -> bool:
+        """Create Claude Code settings file"""
+        try:
+            # Find space base path
+            base_path = self._find_space_base_path(space_ref)
+            if not base_path:
+                logger.warning(f"Could not find base path for space: {space_ref}")
+                return False
+            
+            # Task directory path
+            task_dir = base_path / "tasks" / task_name
+            if not task_dir.exists():
+                logger.warning(f"Task directory does not exist: {task_dir}")
+                return False
+            
+            # Claude Code統合を使用して設定ファイルを作成
+            from ..agent.claude_integration import ClaudeCodeIntegration
+            claude_integration = ClaudeCodeIntegration()
+            
+            # 設定ファイル作成
+            success = claude_integration.create_claude_settings(
+                task_dir, 
+                company_agent_defaults or {}, 
+                agent_config
+            )
+            
+            if success:
+                logger.info(f"📁 Created Claude Code settings for task: {task_name}")
+            else:
+                logger.warning(f"Failed to create Claude Code settings for task: {task_name}")
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Failed to create Claude Code settings: {e}")
             return False 

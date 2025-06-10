@@ -70,13 +70,96 @@ haconiwa space delete -c test-multiroom-company --clean-dirs --force
 haconiwa space delete -c test-multiroom-company --force
 ```
 
-**📁 自動作成されるマルチルーム構造:**
+**📁 自動作成されるマルチルーム構造（階層的法的フレームワーク）:**
 ```
 ./test-multiroom-desks/
-├── standby/                 # 待機中エージェント（26 agents）
-│   └── README.md           # 自動生成説明ファイル
+├── jp/                                  # 国レベル (Nation Level)
+│   ├── law/                            # 国家法ディレクトリ
+│   │   ├── global-rules.md            # グローバル規則
+│   │   ├── system-prompts/            # システムプロンプト
+│   │   │   └── nation-agent-prompt.md
+│   │   └── permissions/               # 権限管理
+│   │       ├── code-permissions.yaml
+│   │       └── file-permissions.yaml
+│   └── tokyo/                         # 市レベル (City Level)
+│       ├── law/                       # 市法ディレクトリ
+│       │   ├── regional-rules.md     # 地域規則
+│       │   ├── system-prompts/       # システムプロンプト
+│       │   │   └── city-agent-prompt.md
+│       │   └── permissions/          # 権限管理
+│       │       ├── code-permissions.yaml
+│       │       └── file-permissions.yaml
+│       └── test-village/              # 村レベル (Village Level)
+│           ├── law/                   # 村法ディレクトリ
+│           │   ├── local-rules.md    # ローカル規則
+│           │   ├── system-prompts/   # システムプロンプト
+│           │   │   └── village-agent-prompt.md
+│           │   └── permissions/      # 権限管理
+│           │       ├── code-permissions.yaml
+│           │       └── file-permissions.yaml
+│           └── test-multiroom-company/    # 会社レベル (Company Level)
+│               ├── law/               # 会社法ディレクトリ
+│               │   ├── project-rules.md  # プロジェクト規則
+│               │   ├── system-prompts/   # システムプロンプト
+│               │   │   └── company-agent-prompt.md
+│               │   └── permissions/      # 権限管理
+│               │       ├── code-permissions.yaml
+│               │       └── file-permissions.yaml
+│               └── headquarters/      # 建物レベル (Building Level)
+│                   ├── law/           # 建物法ディレクトリ
+│                   │   ├── building-rules.md # 建物規則
+│                   │   ├── system-prompts/   # システムプロンプト
+│                   │   │   └── building-agent-prompt.md
+│                   │   └── permissions/      # 権限管理
+│                   │       ├── code-permissions.yaml
+│                   │       └── file-permissions.yaml
+│                   └── floor-1/       # 階層レベル (Floor Level)
+│                       ├── law/       # 階層法ディレクトリ
+│                       │   ├── floor-rules.md    # 階層規則
+│                       │   ├── system-prompts/   # システムプロンプト
+│                       │   │   └── floor-agent-prompt.md
+│                       │   └── permissions/      # 権限管理
+│                       │       ├── code-permissions.yaml
+│                       │       └── file-permissions.yaml
+│                       ├── room-01/   # 部屋レベル (Room Level)
+│                       │   ├── law/   # 部屋法ディレクトリ
+│                       │   │   ├── team-rules.md     # チーム規則
+│                       │   │   ├── system-prompts/   # システムプロンプト
+│                       │   │   │   └── room-agent-prompt.md
+│                       │   │   └── permissions/      # 権限管理
+│                       │   │       ├── code-permissions.yaml
+│                       │   │       └── file-permissions.yaml
+│                       │   └── desks/         # デスクレベル (Desk Level)
+│                       │       ├── law/       # デスク法ディレクトリ
+│                       │       │   ├── agent-rules.md    # エージェント規則
+│                       │       │   ├── system-prompts/   # システムプロンプト
+│                       │       │   │   └── desk-agent-prompt.md
+│                       │       │   └── permissions/      # 権限管理
+│                       │       │       ├── code-permissions.yaml
+│                       │       │       └── file-permissions.yaml
+│                       │       ├── org-01-pm/
+│                       │       ├── org-01-worker-a/
+│                       │       ├── org-01-worker-b/
+│                       │       ├── org-01-worker-c/
+│                       │       ├── org-02-pm/
+│                       │       ├── org-02-worker-a/
+│                       │       ├── org-02-worker-b/
+│                       │       ├── org-02-worker-c/
+│                       │       ├── org-03-pm/
+│                       │       ├── org-03-worker-a/
+│                       │       ├── org-03-worker-b/
+│                       │       ├── org-03-worker-c/
+│                       │       ├── org-04-pm/
+│                       │       ├── org-04-worker-a/
+│                       │       ├── org-04-worker-b/
+│                       │       └── org-04-worker-c/
+│                       └── room-02/   # 部屋レベル (Room Level)
+│                           ├── law/   # 部屋法ディレクトリ (同様の構成)
+│                           └── desks/ # デスクレベル (同様の構成)
+├── standby/                # 待機中エージェント（26 agents）
+│   └── README.md          # 自動生成説明ファイル
 └── tasks/                  # タスク割り当て済みエージェント（6 agents）
-    ├── main/               # メインGitリポジトリ
+    ├── main/              # メインGitリポジトリ
     ├── 20250609061748_frontend-ui-design_01/     # タスク1
     ├── 20250609061749_backend-api-development_02/ # タスク2
     ├── 20250609061750_database-schema-design_03/  # タスク3
@@ -311,30 +394,77 @@ tmux kill-session -t my-company
 
 ## 🏗️ アーキテクチャ概念
 
+### スペース規則階層 (Space Rule Hierarchy)
+
+Haconista は、YAML スペース構造に従った**スペース規則階層**を組み込み、シンプルな規則継承を通じてエージェントガバナンスを管理します：
+
+| 階層レベル | 規則文書 | tmux対応 | エージェント統制 | ディレクトリ構造 |
+|-----------|---------|-----------|-----------------|-----------------|
+| **国 (Nation)** | **グローバル規則 (Global Rules)** | - | 汎用原則・中核標準 | `jp/law/global-rules.md` |
+| **市 (City)** | **地域規則 (Regional Rules)** | - | 地域ガイドライン・コンプライアンス | `jp/tokyo/law/regional-rules.md` |
+| **村 (Village)** | **ローカル規則 (Local Rules)** | - | コミュニティプラクティス・ワークフロー | `jp/tokyo/test-village/law/local-rules.md` |
+| **会社 (Company)** | **プロジェクト規則 (Project Rules)** | **Session** | プロジェクトポリシー・手続き | `jp/tokyo/test-village/test-multiroom-company/law/project-rules.md` |
+| **建物 (Building)** | **建物規則 (Building Rules)** | - | 建物固有ガイドライン | `../headquarters/law/building-rules.md` |
+| **階層 (Floor)** | **階層規則 (Floor Rules)** | - | フロアレベル管理 | `../floor-1/law/floor-rules.md` |
+| **部屋 (Room)** | **チーム規則 (Team Rules)** | **Window** | チーム固有ガイドライン | `../room-01/law/team-rules.md` |
+| **デスク (Desk)** | **エージェント規則 (Agent Rules)** | **Pane** | 個人エージェント行動規則 | `../desks/law/agent-rules.md` |
+
+### 規則文書・エージェント管理システム
+
+各階層レベルには `law/` ディレクトリが含まれ、以下を管理：
+
+```
+{level}/law/
+├── {rule-document}.md      # 規則文書 (Rule Document)
+├── system-prompts/         # システムプロンプト (System Prompts)
+│   └── {level}-agent-prompt.md
+└── permissions/            # 権限管理 (Permissions Management)
+    ├── code-permissions.yaml    # コード権限 (Code Permissions)
+    └── file-permissions.yaml   # ファイル権限 (File Permissions)
+```
+
+**📋 スペース規則フレームワークの特徴:**
+- **🏛️ YAML準拠階層**: YAML スペース構造との完全一致 (Nations > Cities > Villages > Companies > Buildings > Floors > Rooms > Desks)
+- **🤖 汎用エージェント**: 全エージェントが同じ構造に従いつつ、異なる規則セットで動作
+- **📜 分散法管理**: 実際のスペース階層全体に規則文書を分散配置
+- **🔐 階層権限**: スペースレベル経由でのコード・ファイルアクセス権継承
+- **📋 コンプライアンス追跡**: 全スペースレベルでの自動規則コンプライアンス検証
+- **🔄 規則継承**: エージェントは親スペースレベルのすべての規則を順序立てて継承
+
 ### tmux ↔ Haconiwa 概念対応
 
-| tmux概念 | Haconiwa概念 | 説明 |
-|----------|-------------|------|
-| **Session** | **Company（会社）** | 最上位の管理単位。プロジェクト全体を表現 |
-| **Window** | **Room（部屋）** | 機能別の作業領域。特定の役割や機能を担当 |
-| **Pane** | **Desk（デスク）** | 個別の作業スペース。具体的なタスク実行場所 |
+| tmux概念 | Haconiwa概念 | 規則フレームワーク | 説明 |
+|----------|-------------|------------------|------|
+| **Session** | **Company（会社）** | **プロジェクト規則** | プロジェクトガバナンスを持つ最上位管理単位 |
+| **Window** | **Room（部屋）** | **チーム規則** | チーム固有規則を持つ機能別作業領域 |
+| **Pane** | **Desk（デスク）** | **エージェント規則** | 個人エージェント規則を持つ個別作業スペース |
 
-### 論理階層管理
+### 階層規則管理
 
 ```
-Company（会社）
-├── Building（建物）    ← 論理管理層（tmuxに非依存）
-│   └── Floor（階層）   ← 論理管理層（tmuxに非依存）
-│       └── Room（部屋） ← tmux Window
-│           └── Desk（デスク） ← tmux Pane
+
+YAML準拠スペース規則フレームワーク (YAML-Aligned Space Rule Framework)
+├── Nation (jp) (国)                    ← グローバル原則 (Global principles)
+│   └── City (tokyo) (市)              ← 地域ガイドライン (Regional guidelines)
+│       └── Village (test-village) (村) ← ローカルプラクティス (Local practices)
+│           └── Company (test-multiroom-company) (会社) ← プロジェクト規則 (Project rules) → tmux Session
+│               └── Building (headquarters) (建物) ← 建物規則 (Building rules)
+│                   └── Floor (floor-1) (階層) ← 階層規則 (Floor rules)
+│                       └── Room (room-01/room-02) (部屋) ← チーム規則 (Team rules) → tmux Window
+│                           └── Desk (desks/*) (デスク) ← エージェント規則 (Agent rules) → tmux Pane
 ```
 
-**論理管理層の特徴：**
-- **Building**: プロジェクトの大分類（フロントエンド棟、バックエンド棟など）
-- **Floor**: 機能分類（開発フロア、テストフロア、デプロイフロアなど）
-- これらの層はtmux会社に直接対応せず、haconiwa内部で論理的に管理
+**スペースガバナンス機能:**
+- **国**: グローバル原則、汎用標準、コアアーキテクチャガイドライン
+- **市**: 地域開発標準、技術コンプライアンス要件
+- **村**: コミュニティガイドライン、ローカルワークフロー標準、チームプロトコル
+- **会社**: プロジェクト管理ポリシー、ビジネスロジック制約、リソースルール
+- **建物**: 建物固有手続き、物理スペース管理
+- **階層**: フロアレベル調整、リソース配分、ルーム間コミュニケーション
+- **部屋**: チーム固有手続き、役割ベース責任、タスクガイドライン
+- **デスク**: 個人エージェント行動、個人生産性標準、タスク制約
 
-### 組織構成モデル
+
 
 ```
 Organization（組織）
@@ -352,7 +482,8 @@ Organization（組織）
 - **PM（Boss）**: 戦略的意思決定、リソース管理、品質保証
 - **Worker**: 実装、テスト、デプロイなどの実行業務
 - **Organization**: 複数のPM/Workerで構成される論理的なチーム単位
-
+```
+    Organization（組織）
 ## 🚀 インストール
 
 ```bash

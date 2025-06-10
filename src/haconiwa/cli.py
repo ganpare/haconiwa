@@ -433,6 +433,9 @@ def space_delete(
     # Import subprocess for tmux interaction
     import subprocess
     import shutil
+    from pathlib import Path
+    
+    from haconiwa.space.manager import SpaceManager
     
     # Check if session exists
     try:
@@ -478,6 +481,10 @@ def space_delete(
         
         # Clean directories
         if clean_dirs:
+            import glob
+            import os
+            
+            # Standard directory patterns
             dirs_to_clean = [
                 f"./{company}",
                 f"./{company}-desks",
@@ -485,6 +492,66 @@ def space_delete(
                 f"./test-{company}-desks"
             ]
             
+            # Additional flexible patterns for multiroom/space directories
+            additional_patterns = [
+                f"./test-*-desks",      # test-multiroom-desks, test-xxx-desks
+                f"./*-{company}*",      # multiroom-company variants
+                f"./test-*{company}*",  # test-multiroom-company variants  
+                f"./{company}*",        # company variations
+            ]
+            
+            # Add matched directories from glob patterns
+            for pattern in additional_patterns:
+                matched_dirs = glob.glob(pattern)
+                for matched_dir in matched_dirs:
+                    if matched_dir not in dirs_to_clean:
+                        dirs_to_clean.append(matched_dir)
+            
+            # Clean up git worktrees first (before removing directories)
+            cleaned_worktrees = []
+            for dir_path in dirs_to_clean:
+                if Path(dir_path).exists():
+                    # Check if it's a git repository with worktrees
+                    git_dir = Path(dir_path) / ".git"
+                    if git_dir.exists():
+                        try:
+                            # List and remove worktrees
+                            result = subprocess.run(['git', '-C', dir_path, 'worktree', 'list', '--porcelain'], 
+                                                   capture_output=True, text=True)
+                            if result.returncode == 0:
+                                worktrees = []
+                                current_worktree = {}
+                                for line in result.stdout.strip().split('\n'):
+                                    if line.startswith('worktree '):
+                                        if current_worktree and current_worktree.get('worktree'):
+                                            worktrees.append(current_worktree)
+                                        current_worktree = {'worktree': line.split(' ', 1)[1]}
+                                    elif line.startswith('branch '):
+                                        current_worktree['branch'] = line.split(' ', 1)[1]
+                                    elif line == 'bare':
+                                        current_worktree['bare'] = True
+                                    elif line == 'detached':
+                                        current_worktree['detached'] = True
+                                
+                                # Add the last worktree
+                                if current_worktree and current_worktree.get('worktree'):
+                                    worktrees.append(current_worktree)
+                                
+                                # Remove non-main worktrees
+                                for worktree in worktrees:
+                                    wt_path = worktree['worktree']
+                                    if wt_path != dir_path and Path(wt_path).exists():
+                                        try:
+                                            subprocess.run(['git', '-C', dir_path, 'worktree', 'remove', wt_path, '--force'], 
+                                                         capture_output=True, text=True, check=True)
+                                            cleaned_worktrees.append(wt_path)
+                                            typer.echo(f"✅ Removed git worktree: {wt_path}")
+                                        except subprocess.CalledProcessError as e:
+                                            typer.echo(f"⚠️ Failed to remove git worktree {wt_path}: {e}")
+                        except Exception as e:
+                            typer.echo(f"⚠️ Error checking git worktrees in {dir_path}: {e}")
+            
+            # Remove directories
             cleaned_dirs = []
             for dir_path in dirs_to_clean:
                 if Path(dir_path).exists():
@@ -495,8 +562,10 @@ def space_delete(
                     except Exception as e:
                         typer.echo(f"❌ Failed to remove {dir_path}: {e}", err=True)
             
-            if cleaned_dirs:
-                typer.echo(f"🗑️ Cleaned {len(cleaned_dirs)} directories")
+            # Summary
+            total_cleaned = len(cleaned_dirs) + len(cleaned_worktrees)
+            if total_cleaned > 0:
+                typer.echo(f"🗑️ Cleaned {len(cleaned_dirs)} directories and {len(cleaned_worktrees)} git worktrees")
             else:
                 typer.echo("ℹ️ No directories found to clean")
         

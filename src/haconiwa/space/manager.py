@@ -54,6 +54,9 @@ class SpaceManager:
             
             logger.info(f"Creating multiroom session: {session_name} with {len(rooms)} rooms")
             
+            # Check and remove existing tmux session if it exists
+            self._cleanup_existing_session(session_name)
+            
             # Create base directory structure
             base_path.mkdir(parents=True, exist_ok=True)
             
@@ -90,6 +93,13 @@ class SpaceManager:
             # Distribute desks to windows
             desk_distribution = self._distribute_desks_to_windows(desk_mappings)
             
+            # Debug: Log distribution details
+            logger.info(f"Desk distribution summary:")
+            for room_id, desks in desk_distribution.items():
+                logger.info(f"  {room_id}: {len(desks)} mappings")
+                for i, desk in enumerate(desks):
+                    logger.info(f"    {i}: {desk['desk_id']} ({desk['role']}) -> {desk['title']}")
+            
             # Calculate panes per window
             layout_info = self._calculate_panes_per_window(grid, len(rooms))
             panes_per_window = layout_info["panes_per_window"]
@@ -98,32 +108,54 @@ class SpaceManager:
             for room_id, desks_in_room in desk_distribution.items():
                 window_id = self._get_window_id_for_room(room_id)
                 
+                # Get pane count for this specific room
+                if isinstance(panes_per_window, dict):
+                    room_pane_count = panes_per_window.get(room_id, 16)
+                else:
+                    room_pane_count = panes_per_window
+                
+                logger.info(f"Setting up {room_id}: {room_pane_count} panes, {len(desks_in_room)} mappings")
+                
                 # Create panes in this window
-                if not self._create_panes_in_window(session_name, window_id, panes_per_window):
+                if not self._create_panes_in_window(session_name, window_id, room_pane_count):
                     logger.warning(f"Failed to create panes in window {window_id}")
                     continue
                 
+                # Ensure we have enough mappings for the panes
+                if len(desks_in_room) < room_pane_count:
+                    logger.warning(f"Insufficient mappings for {room_id}: {len(desks_in_room)} mappings for {room_pane_count} panes")
+                    continue
+                elif len(desks_in_room) > room_pane_count:
+                    logger.info(f"Extra mappings for {room_id}, using first {room_pane_count} mappings")
+                    desks_in_room = desks_in_room[:room_pane_count]
+                
                 # Set up each desk in the window
                 for pane_index, desk_mapping in enumerate(desks_in_room):
+                    if pane_index >= room_pane_count:
+                        logger.warning(f"Skipping extra mapping {pane_index} for {room_id}")
+                        break
+                    
                     desk_dir = self._create_desk_directory(base_path, desk_mapping)
                     self._update_pane_in_window(session_name, window_id, pane_index, desk_mapping, desk_dir)
             
-            # Store session info
+            # Store session configuration
             self.active_sessions[session_name] = {
                 "config": config,
+                "base_path": str(base_path),
                 "desk_mappings": desk_mappings,
                 "desk_distribution": desk_distribution,
-                "pane_count": len(desk_mappings),
-                "window_count": len(rooms),
-                "layout_info": layout_info,
-                "tasks_path": str(tasks_path),
-                "main_repo_path": str(main_repo_path)
+                "session_name": session_name
             }
             
-            logger.info(f"Multiroom session created successfully: {session_name}")
-            logger.info(f"  Windows: {len(rooms)}, Total panes: {len(desk_mappings)}")
-            logger.info(f"  Tasks directory: {tasks_path}")
-            logger.info(f"  Main repository: {main_repo_path}")
+            # Display created directory structure
+            self._display_created_structure(base_path, organizations)
+            
+            logger.info(f"✅ Multiroom session '{session_name}' created successfully")
+            logger.info(f"   📁 Base directory: {base_path}")
+            logger.info(f"   🏢 Organizations: {len(organizations)}")
+            logger.info(f"   🚪 Rooms: {len(rooms)} (Alpha & Beta)")
+            logger.info(f"   🖥️ Panes: 32 (16 per room)")
+            
             return True
             
         except Exception as e:
@@ -131,25 +163,26 @@ class SpaceManager:
             return False
     
     def generate_desk_mappings(self, organizations: List[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
-        """Generate 32-desk mappings (4 orgs × 4 roles × 2 rooms) with organization names"""
+        """Generate desk mappings for multi-room layout with Executive floor"""
         if not organizations:
             # Fallback to default organization names
             organizations = [
-                {"id": "01", "name": "Organization 1"},
-                {"id": "02", "name": "Organization 2"},
-                {"id": "03", "name": "Organization 3"},
-                {"id": "04", "name": "Organization 4"}
+                {"id": "01", "name": "Frontend Development Team", "department_id": "frontend"},
+                {"id": "02", "name": "Backend Development Team", "department_id": "backend"},
+                {"id": "03", "name": "DevOps Infrastructure Team", "department_id": "devops"},
+                {"id": "04", "name": "Quality Assurance Team", "department_id": "qa"},
+                {"id": "05", "name": "Executive Leadership", "department_id": "executive"}
             ]
         
         mappings = []
         
-        # Ensure we have exactly 4 organizations
-        while len(organizations) < 4:
+        # Ensure we have at least 5 organizations
+        while len(organizations) < 5:
             org_id = f"{len(organizations) + 1:02d}"
-            organizations.append({"id": org_id, "name": f"Organization {len(organizations) + 1}"})
+            organizations.append({"id": org_id, "name": f"Organization {len(organizations) + 1}", "department_id": "unknown"})
         
-        # Room-01 (Alpha Room)
-        for i, org in enumerate(organizations[:4]):  # First 4 organizations
+        # Room-01 (Alpha Room) - Organizations 1-2
+        for i, org in enumerate(organizations[:2]):  # First 2 organizations
             org_id = i + 1
             org_name = org.get("name", f"Org-{org_id:02d}")
             
@@ -177,21 +210,21 @@ class SpaceManager:
                     "title": title
                 })
         
-        # Room-02 (Beta Room)
-        for i, org in enumerate(organizations[:4]):  # First 4 organizations
-            org_id = i + 1
+        # Room-02 (Beta Room) - Organizations 3-4
+        for i, org in enumerate(organizations[2:4]):  # Organizations 3-4
+            org_id = i + 3
             org_name = org.get("name", f"Org-{org_id:02d}")
             
             for role_id in range(4):  # pm, worker-a, worker-b, worker-c
-                desk_id = f"desk-1{org_id}{role_id:02d}"
+                desk_id = f"desk-{org_id:02d}{role_id:02d}"
                 role_name = "pm" if role_id == 0 else f"worker-{chr(ord('a') + role_id - 1)}"
                 
-                # Directory naming: 11pm, 11a, 11b, 11c (1 + org_id + role)
+                # Directory naming: 03pm, 03a, 03b, 03c, 04pm, 04a, 04b, 04c
                 if role_name == "pm":
-                    dir_name = f"1{org_id}pm"
+                    dir_name = f"{org_id:02d}pm"
                 else:
                     worker_suffix = role_name.split("-")[1]  # a, b, c
-                    dir_name = f"1{org_id}{worker_suffix}"
+                    dir_name = f"{org_id:02d}{worker_suffix}"
                 
                 # Create title with organization name
                 role_display = "PM" if role_name == "pm" else role_name.upper()
@@ -206,6 +239,42 @@ class SpaceManager:
                     "title": title
                 })
         
+        # Executive Room - Organization 5 (Executive Leadership)
+        if len(organizations) >= 5:
+            org = organizations[4]  # 5th organization (Executive)
+            org_id = 5
+            org_name = org.get("name", "Executive Leadership")
+            
+            logger.info(f"Generating Executive Room mappings for: {org_name}")
+            
+            # CEO, CTO, COO (3 executives + 1 assistant)
+            executive_roles = ["ceo", "cto", "coo", "assistant"]
+            executive_titles = ["CEO", "CTO", "COO", "Executive Assistant"]
+            
+            for role_id, (role_name, role_title) in enumerate(zip(executive_roles, executive_titles)):
+                desk_id = f"desk-exec-{role_id:02d}"
+                
+                # Directory naming: exec-ceo, exec-cto, exec-coo, exec-assistant
+                dir_name = f"exec-{role_name}"
+                
+                # Create title with executive role
+                title = f"{org_name} - {role_title} - Executive Room"
+                
+                mapping = {
+                    "desk_id": desk_id,
+                    "org_id": f"org-05",
+                    "role": role_name,
+                    "room_id": "room-executive",
+                    "directory_name": dir_name,
+                    "title": title
+                }
+                
+                logger.debug(f"Generated Executive mapping {role_id}: {mapping}")
+                mappings.append(mapping)
+            
+            logger.info(f"Generated {len(executive_roles)} Executive Room mappings")
+        
+        logger.info(f"Total mappings generated: {len(mappings)}")
         return mappings
     
     def convert_crd_to_config(self, crd: SpaceCRD) -> Dict[str, Any]:
@@ -213,15 +282,21 @@ class SpaceManager:
         # Navigate through the CRD structure to get company config
         company = crd.spec.nations[0].cities[0].villages[0].companies[0]
         
+        # Use world name as base path if basePath is not specified
+        base_path = company.basePath
+        if base_path is None:
+            base_path = f"./{crd.metadata.name}"
+        
         config = {
             "name": company.name,
             "grid": company.grid,
-            "base_path": company.basePath,
+            "base_path": base_path,
             "git_repo": None,
             "organizations": [],
             "rooms": [
                 {"id": "room-01", "name": "Alpha Room"},
-                {"id": "room-02", "name": "Beta Room"}
+                {"id": "room-02", "name": "Beta Room"},
+                {"id": "room-executive", "name": "Executive Room"}
             ]
         }
         
@@ -233,15 +308,129 @@ class SpaceManager:
                 "auth": company.gitRepo.auth
             }
         
-        # Add organizations
-        for org in company.organizations:
-            config["organizations"].append({
-                "id": org.id,
-                "name": org.name,
-                "tasks": org.tasks
-            })
+        # Get organization reference and fetch organization data
+        organization_ref = getattr(company, 'organizationRef', None)
+        if organization_ref:
+            # Fetch organization data from applied Organization CRDs
+            organizations = self._get_organization_data(organization_ref)
+            config["organizations"] = organizations
+        else:
+            # Fallback to default organizations if no organizationRef
+            logger.warning("No organizationRef found, using default organizations")
+            config["organizations"] = [
+                {"id": "01", "name": "Frontend Development Team", "department_id": "frontend"},
+                {"id": "02", "name": "Backend Development Team", "department_id": "backend"},
+                {"id": "03", "name": "DevOps Infrastructure Team", "department_id": "devops"},
+                {"id": "04", "name": "Quality Assurance Team", "department_id": "qa"},
+                {"id": "05", "name": "Executive Leadership", "department_id": "executive"}
+            ]
         
         return config
+    
+    def _get_organization_data(self, organization_ref: str) -> List[Dict[str, Any]]:
+        """Get organization data from applied Organization CRDs"""
+        try:
+            logger.info(f"Fetching organization data for ref: {organization_ref}")
+            
+            # Try to get the actual Organization CRD from applied resources
+            from ..core.applier import CRDApplier
+            
+            # Get singleton instance of CRDApplier - this needs to be improved in real implementation
+            # For now, we'll use a workaround to access applied resources
+            
+            # Search for applied Organization CRD
+            organization_crd = None
+            applied_resources = {}
+            
+            # Try to access via module-level variable (workaround)
+            try:
+                import sys
+                if hasattr(sys.modules.get('__main__'), '_current_applier'):
+                    applier = getattr(sys.modules['__main__'], '_current_applier')
+                    applied_resources = applier.get_applied_resources()
+            except:
+                pass
+            
+            # Look for Organization CRD in applied resources
+            for resource_key, resource in applied_resources.items():
+                if resource_key.startswith("Organization/") and resource.metadata.name == organization_ref:
+                    organization_crd = resource
+                    logger.info(f"Found Organization CRD: {organization_ref}")
+                    break
+            
+            if organization_crd:
+                # Map Organization CRD departments to 32-pane structure (4 orgs × 4 roles × 2 rooms)
+                departments = organization_crd.spec.hierarchy.departments
+                logger.info(f"Found {len(departments)} departments in Organization CRD")
+                
+                # Create organization mapping based on departments
+                organizations = []
+                
+                # Map departments to 4 organizations for 32-pane layout
+                department_mapping = [
+                    ("frontend", "Frontend Development Team"),
+                    ("backend", "Backend Development Team"), 
+                    ("devops", "DevOps Infrastructure Team"),
+                    ("qa", "Quality Assurance Team"),
+                    ("executive", "Executive Leadership")  # 5番目の組織として追加
+                ]
+                
+                for i, (dept_id, default_name) in enumerate(department_mapping):
+                    org_id = f"{i+1:02d}"
+                    
+                    # Find matching department in Organization CRD
+                    dept_name = default_name
+                    for dept in departments:
+                        if dept.id == dept_id:
+                            dept_name = dept.name
+                            logger.info(f"Mapped department {dept_id} → {dept_name}")
+                            break
+                    
+                    organizations.append({
+                        "id": org_id,
+                        "name": dept_name,
+                        "department_id": dept_id
+                    })
+                
+                # If we have executive department, map it to all organizations (leadership structure)
+                executive_dept = None
+                for dept in departments:
+                    if dept.id == "executive":
+                        executive_dept = dept
+                        break
+                
+                if executive_dept:
+                    logger.info(f"Found executive department: {executive_dept.name}")
+                    # Executive roles will be distributed across organizations
+                
+                logger.info(f"Created {len(organizations)} organization mappings from Organization CRD")
+                for org in organizations:
+                    logger.info(f"  {org['id']}: {org['name']} (dept: {org['department_id']})")
+                
+                return organizations
+                
+            else:
+                logger.warning(f"Organization CRD {organization_ref} not found in applied resources")
+                # Fallback to enhanced default based on common department structure
+                logger.info("Using enhanced default organization mapping")
+                return [
+                    {"id": "01", "name": "Frontend Development Team", "department_id": "frontend"},
+                    {"id": "02", "name": "Backend Development Team", "department_id": "backend"},
+                    {"id": "03", "name": "DevOps Infrastructure Team", "department_id": "devops"},
+                    {"id": "04", "name": "Quality Assurance Team", "department_id": "qa"},
+                    {"id": "05", "name": "Executive Leadership", "department_id": "executive"}
+                ]
+            
+        except Exception as e:
+            logger.error(f"Failed to get organization data for {organization_ref}: {e}")
+            # Fallback to default organizations
+            return [
+                {"id": "01", "name": "Frontend Development Team", "department_id": "frontend"},
+                {"id": "02", "name": "Backend Development Team", "department_id": "backend"},
+                {"id": "03", "name": "DevOps Infrastructure Team", "department_id": "devops"},
+                {"id": "04", "name": "Quality Assurance Team", "department_id": "qa"},
+                {"id": "05", "name": "Executive Leadership", "department_id": "executive"}
+            ]
     
     def _create_tmux_session(self, session_name: str):
         """Create tmux session"""
@@ -278,100 +467,154 @@ class SpaceManager:
             return False
     
     def _create_panes_in_window(self, session_name: str, window_id: str, pane_count: int) -> bool:
-        """Create panes in specific tmux window (4x4 layout for 16 panes) - using proven logic from tmux.py"""
+        """Create panes in specific tmux window - supports different layouts"""
         try:
-            # Use the same proven logic from company build (tmux.py)
-            # Create 4x4 pane layout (16 panes total)
-            
-            # Split vertically 3 times to create 4 rows
-            cmd = ["tmux", "split-window", "-v", "-t", f"{session_name}:{window_id}.0"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                logger.warning(f"Failed to create vertical split 1 in window {window_id}: {result.stderr}")
-            
-            cmd = ["tmux", "split-window", "-v", "-t", f"{session_name}:{window_id}.0"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                logger.warning(f"Failed to create vertical split 2 in window {window_id}: {result.stderr}")
-            
-            cmd = ["tmux", "split-window", "-v", "-t", f"{session_name}:{window_id}.1"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                logger.warning(f"Failed to create vertical split 3 in window {window_id}: {result.stderr}")
-            
-            # Split each row horizontally 3 times to create 4 columns
-            # Row 1 (panes 0-3)
-            cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.0"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                logger.warning(f"Failed to create horizontal split row1-1 in window {window_id}: {result.stderr}")
-            
-            cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.0"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                logger.warning(f"Failed to create horizontal split row1-2 in window {window_id}: {result.stderr}")
-            
-            cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.1"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                logger.warning(f"Failed to create horizontal split row1-3 in window {window_id}: {result.stderr}")
-            
-            # Row 2 (panes 4-7)
-            cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.4"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                logger.warning(f"Failed to create horizontal split row2-1 in window {window_id}: {result.stderr}")
-            
-            cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.4"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                logger.warning(f"Failed to create horizontal split row2-2 in window {window_id}: {result.stderr}")
-            
-            cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.5"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                logger.warning(f"Failed to create horizontal split row2-3 in window {window_id}: {result.stderr}")
-            
-            # Row 3 (panes 8-11)
-            cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.8"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                logger.warning(f"Failed to create horizontal split row3-1 in window {window_id}: {result.stderr}")
-            
-            cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.8"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                logger.warning(f"Failed to create horizontal split row3-2 in window {window_id}: {result.stderr}")
-            
-            cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.9"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                logger.warning(f"Failed to create horizontal split row3-3 in window {window_id}: {result.stderr}")
-            
-            # Row 4 (panes 12-15)
-            cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.12"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                logger.warning(f"Failed to create horizontal split row4-1 in window {window_id}: {result.stderr}")
-            
-            cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.12"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                logger.warning(f"Failed to create horizontal split row4-2 in window {window_id}: {result.stderr}")
-            
-            cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.13"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                logger.warning(f"Failed to create horizontal split row4-3 in window {window_id}: {result.stderr}")
-            
-            # Apply tiled layout for even distribution
-            cmd = ["tmux", "select-layout", "-t", f"{session_name}:{window_id}", "tiled"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                logger.warning(f"Failed to apply tiled layout to window {window_id}: {result.stderr}")
-            
-            logger.info(f"Created {pane_count} panes in window {window_id} (4x4 layout)")
-            return True
+            if pane_count == 4:
+                # Executive Room layout: 1x4 (4 panes in a row)
+                # Split horizontally 3 times to create 4 columns
+                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.0"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create horizontal split 1 in window {window_id}: {result.stderr}")
+                
+                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.0"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create horizontal split 2 in window {window_id}: {result.stderr}")
+                
+                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.1"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create horizontal split 3 in window {window_id}: {result.stderr}")
+                
+                logger.info(f"Created {pane_count} panes in window {window_id} (1x4 Executive layout)")
+                return True
+                
+            elif pane_count == 8:
+                # Alpha/Beta Room layout: 2x4 (8 panes)
+                # Split vertically once to create 2 rows
+                cmd = ["tmux", "split-window", "-v", "-t", f"{session_name}:{window_id}.0"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create vertical split in window {window_id}: {result.stderr}")
+                
+                # Split each row horizontally 3 times to create 4 columns
+                # Top row (panes 0-3)
+                for i in range(3):
+                    target_pane = 0 if i == 0 else 1
+                    cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.{target_pane}"]
+                    result = subprocess.run(cmd, capture_output=True, text=True)
+                    if result.returncode != 0:
+                        logger.warning(f"Failed to create horizontal split top-{i+1} in window {window_id}: {result.stderr}")
+                
+                # Bottom row (panes 4-7)
+                for i in range(3):
+                    target_pane = 4 if i == 0 else 5
+                    cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.{target_pane}"]
+                    result = subprocess.run(cmd, capture_output=True, text=True)
+                    if result.returncode != 0:
+                        logger.warning(f"Failed to create horizontal split bottom-{i+1} in window {window_id}: {result.stderr}")
+                
+                # Apply tiled layout for even distribution
+                cmd = ["tmux", "select-layout", "-t", f"{session_name}:{window_id}", "tiled"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to apply tiled layout to window {window_id}: {result.stderr}")
+                
+                logger.info(f"Created {pane_count} panes in window {window_id} (2x4 layout)")
+                return True
+                
+            else:
+                # Default 4x4 layout (16 panes) - existing logic
+                # Split vertically 3 times to create 4 rows
+                cmd = ["tmux", "split-window", "-v", "-t", f"{session_name}:{window_id}.0"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create vertical split 1 in window {window_id}: {result.stderr}")
+                
+                cmd = ["tmux", "split-window", "-v", "-t", f"{session_name}:{window_id}.0"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create vertical split 2 in window {window_id}: {result.stderr}")
+                
+                cmd = ["tmux", "split-window", "-v", "-t", f"{session_name}:{window_id}.1"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create vertical split 3 in window {window_id}: {result.stderr}")
+                
+                # Split each row horizontally 3 times to create 4 columns
+                # Row 1 (panes 0-3)
+                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.0"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create horizontal split row1-1 in window {window_id}: {result.stderr}")
+                
+                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.0"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create horizontal split row1-2 in window {window_id}: {result.stderr}")
+                
+                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.1"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create horizontal split row1-3 in window {window_id}: {result.stderr}")
+                
+                # Row 2 (panes 4-7)
+                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.4"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create horizontal split row2-1 in window {window_id}: {result.stderr}")
+                
+                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.4"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create horizontal split row2-2 in window {window_id}: {result.stderr}")
+                
+                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.5"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create horizontal split row2-3 in window {window_id}: {result.stderr}")
+                
+                # Row 3 (panes 8-11)
+                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.8"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create horizontal split row3-1 in window {window_id}: {result.stderr}")
+                
+                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.8"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create horizontal split row3-2 in window {window_id}: {result.stderr}")
+                
+                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.9"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create horizontal split row3-3 in window {window_id}: {result.stderr}")
+                
+                # Row 4 (panes 12-15)
+                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.12"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create horizontal split row4-1 in window {window_id}: {result.stderr}")
+                
+                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.12"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create horizontal split row4-2 in window {window_id}: {result.stderr}")
+                
+                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.13"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create horizontal split row4-3 in window {window_id}: {result.stderr}")
+                
+                # Apply tiled layout for even distribution
+                cmd = ["tmux", "select-layout", "-t", f"{session_name}:{window_id}", "tiled"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to apply tiled layout to window {window_id}: {result.stderr}")
+                
+                logger.info(f"Created {pane_count} panes in window {window_id} (4x4 layout)")
+                return True
             
         except Exception as e:
             logger.error(f"Failed to create panes in window {window_id}: {e}")
@@ -403,8 +646,8 @@ class SpaceManager:
     def _get_agent_id_from_pane_mapping(self, mapping: Dict[str, Any]) -> str:
         """Generate agent ID from pane mapping for task assignment lookup"""
         org_id = mapping["org_id"]  # "org-01"
-        role = mapping["role"]      # "pm", "worker-a", "worker-b", "worker-c"
-        room_id = mapping["room_id"]  # "room-01", "room-02"
+        role = mapping["role"]      # "pm", "worker-a", "worker-b", "worker-c", "ceo", "cto", "coo", "assistant"
+        room_id = mapping["room_id"]  # "room-01", "room-02", "room-executive"
         
         # Extract organization number
         org_num = org_id.split("-")[1]  # "01"
@@ -412,6 +655,9 @@ class SpaceManager:
         # Convert role to agent format
         if role == "pm":
             role_part = "pm"
+        elif role in ["ceo", "cto", "coo", "assistant"]:
+            # Executive roles keep their original names
+            role_part = role
         else:
             # "worker-a" → "wk-a"
             worker_suffix = role.split("-")[1]  # "a", "b", "c"
@@ -422,10 +668,12 @@ class SpaceManager:
             room_part = "r1"
         elif room_id == "room-02":
             room_part = "r2"
+        elif room_id == "room-executive":
+            room_part = "re"
         else:
-            room_part = "r1"
+            room_part = "r1"  # Default fallback
         
-        # Generate agent ID: org01-pm-r1, org01-wk-a-r2, etc.
+        # Generate agent ID: org01-pm-r1, org01-wk-a-r2, org05-ceo-re, etc.
         agent_id = f"org{org_num}-{role_part}-{room_part}"
         return agent_id
     
@@ -660,11 +908,13 @@ class SpaceManager:
     
     def _get_window_id_for_room(self, room_id: str) -> str:
         """Get window ID for specific room"""
-        # room-01 → window 0, room-02 → window 1, etc.
+        # room-01 → window 0, room-02 → window 1, room-executive → window 2
         if room_id == "room-01":
             return "0"
         elif room_id == "room-02":
             return "1"
+        elif room_id == "room-executive":
+            return "2"
         else:
             # Extract number from room-XX format
             try:
@@ -675,7 +925,14 @@ class SpaceManager:
     
     def _calculate_panes_per_window(self, grid: str, room_count: int) -> Dict[str, Any]:
         """Calculate panes per window based on grid and room count"""
-        if grid == "8x4" and room_count == 2:
+        if grid == "8x4" and room_count == 3:
+            # 3 rooms: Alpha (8 panes), Beta (8 panes), Executive (4 panes)
+            return {
+                "total_panes": 20,
+                "panes_per_window": {"room-01": 8, "room-02": 8, "room-executive": 4},
+                "layout_per_window": {"room-01": "2x4", "room-02": "2x4", "room-executive": "1x4"}
+            }
+        elif grid == "8x4" and room_count == 2:
             return {
                 "total_panes": 32,
                 "panes_per_window": 16,
@@ -1060,4 +1317,463 @@ class SpaceManager:
         except Exception as e:
             logger.error(f"Error checking pane path: {e}")
             return False
+    
+    def _cleanup_existing_session(self, session_name: str):
+        """Clean up existing tmux session"""
+        try:
+            # Check if session exists first
+            check_cmd = ["tmux", "has-session", "-t", session_name]
+            check_result = subprocess.run(check_cmd, capture_output=True, text=True)
+            
+            if check_result.returncode == 0:
+                # Session exists, kill it
+                kill_cmd = ["tmux", "kill-session", "-t", session_name]
+                kill_result = subprocess.run(kill_cmd, capture_output=True, text=True)
+                
+                if kill_result.returncode == 0:
+                    logger.debug(f"Cleaned up existing session: {session_name}")
+                else:
+                    logger.warning(f"Failed to clean up existing session: {kill_result.stderr}")
+            else:
+                logger.debug(f"No existing session to clean up: {session_name}")
+        
+        except Exception as e:
+            logger.warning(f"Error during session cleanup: {e}")
+    
+    def _display_created_structure(self, base_path: Path, organizations: List[Dict[str, Any]]) -> None:
+        """Display comprehensive world structure including hierarchy, tasks, and directory mapping"""
+        from rich.console import Console
+        from rich.tree import Tree
+        from rich.panel import Panel
+        from rich.table import Table
+        from rich.columns import Columns
+        
+        console = Console()
+        
+        # Get task assignments for display
+        task_assignments = self._get_current_task_assignments()
+        
+        # Create main world hierarchy tree
+        world_tree = self._create_world_hierarchy_tree(base_path, organizations, task_assignments)
+        
+        # Create directory structure tree
+        directory_tree = self._create_directory_structure_tree(base_path, organizations)
+        
+        # Create task assignment table
+        task_table = self._create_task_assignment_table(task_assignments)
+        
+        # Display all components
+        console.print()
+        
+        # World Hierarchy
+        console.print(Panel.fit(
+            world_tree,
+            title="[bold blue]🌍 World Space Hierarchy[/bold blue]",
+            style="blue",
+            subtitle="[dim]Logical structure and agent assignments[/dim]"
+        ))
+        
+        # Directory Structure and Task Assignments side by side
+        if task_assignments:
+            columns = Columns([
+                Panel.fit(directory_tree, title="[bold green]📁 Directory Structure[/bold green]", style="green"),
+                Panel.fit(task_table, title="[bold yellow]🎯 Task Assignments[/bold yellow]", style="yellow")
+            ], equal=True)
+            console.print(columns)
+        else:
+            console.print(Panel.fit(
+                directory_tree,
+                title="[bold green]📁 Directory Structure[/bold green]",
+                style="green"
+            ))
+        
+        console.print()
+    
+    def _create_world_hierarchy_tree(self, base_path: Path, organizations: List[Dict[str, Any]], task_assignments: Dict[str, Any]):
+        """Create world hierarchy tree showing logical space structure"""
+        from rich.tree import Tree
+        
+        tree = Tree(f"🌍 [bold cyan]World: {base_path.name}[/bold cyan]")
+        
+        # Nation level
+        nation_branch = tree.add("🏴 [blue]Nation: Japan[/blue]")
+        
+        # City level  
+        city_branch = nation_branch.add("🏙️ [blue]City: Tokyo[/blue]")
+        
+        # Village level
+        village_branch = city_branch.add("🏘️ [blue]Village: Harmony Village[/blue]")
+        
+        # Company level
+        company_branch = village_branch.add("🏢 [green]Company: Synergy Development[/green]")
+        
+        # Building level
+        building_branch = company_branch.add("🏢 [yellow]Building: Headquarters[/yellow]")
+        
+        # Floor 1 - Engineering Floor
+        floor1_branch = building_branch.add("🏠 [yellow]Floor 1 - Engineering Floor[/yellow]")
+        
+        # Room level on Floor 1
+        alpha_room = floor1_branch.add("🚪 [cyan]Alpha Room (room-01)[/cyan]")
+        beta_room = floor1_branch.add("🚪 [cyan]Beta Room (room-02)[/cyan]")
+        
+        # Floor 2 - Executive Floor
+        floor2_branch = building_branch.add("🏠 [gold1]Floor 2 - Executive Floor[/gold1]")
+        
+        # Executive Room on Floor 2
+        executive_room = floor2_branch.add("🚪 [gold1]Executive Room (room-executive)[/gold1]")
+        
+        # Get organization data from Organization CRD for detailed role mapping
+        organization_crd_data = self._get_organization_crd_for_display()
+        
+        # Add organizations and desks to each room with actual role information
+        for i, org in enumerate(organizations[:4]):  # First 4 organizations for Alpha/Beta
+            org_id = i + 1
+            org_name = org.get("name", f"Organization {org_id}")
+            department_id = org.get("department_id", "unknown")
+            
+            # Get actual roles for this department from Organization CRD
+            dept_roles = self._get_department_roles(organization_crd_data, department_id)
+            
+            # Only show first 2 orgs in Alpha, next 2 orgs in Beta
+            if i < 2:  # Organizations 1-2 in Alpha Room
+                alpha_org = alpha_room.add(f"📋 [magenta]{org_name}[/magenta]")
+                for j in range(4):  # 4 panes per organization per room
+                    if j == 0:
+                        role_part = "pm"
+                        role_title = dept_roles.get("lead", "Team Lead") if dept_roles else "PM"
+                    else:
+                        role_part = f"wk-{chr(ord('a')+j-1)}"
+                        role_titles = dept_roles.get("workers", ["Senior Dev", "Dev", "Junior Dev"]) if dept_roles else ["Senior Dev", "Dev", "Junior Dev"]
+                        role_title = role_titles[j-1] if j-1 < len(role_titles) else f"Worker {chr(ord('A')+j-1)}"
+                        
+                    desk_id = f"org{org_id:02d}-{role_part}-r1"
+                    task_info = task_assignments.get(desk_id, {})
+                    task_display = f" → [green]{task_info['task_name']}[/green]" if task_info else " [dim](standby)[/dim]"
+                    alpha_org.add(f"👤 [white]{role_title}[/white] ({desk_id}){task_display}")
+                    
+            else:  # Organizations 3-4 in Beta Room
+                beta_org = beta_room.add(f"📋 [magenta]{org_name}[/magenta]")
+                for j in range(4):  # 4 panes per organization per room
+                    if j == 0:
+                        role_part = "pm"
+                        role_title = dept_roles.get("lead", "Team Lead") if dept_roles else "PM"
+                    else:
+                        role_part = f"wk-{chr(ord('a')+j-1)}"
+                        role_titles = dept_roles.get("workers", ["Senior Dev", "Dev", "Junior Dev"]) if dept_roles else ["Senior Dev", "Dev", "Junior Dev"]
+                        role_title = role_titles[j-1] if j-1 < len(role_titles) else f"Worker {chr(ord('A')+j-1)}"
+                        
+                    desk_id = f"org{org_id:02d}-{role_part}-r2"
+                    task_info = task_assignments.get(desk_id, {})
+                    task_display = f" → [green]{task_info['task_name']}[/green]" if task_info else " [dim](standby)[/dim]"
+                    beta_org.add(f"👤 [white]{role_title}[/white] ({desk_id}){task_display}")
+        
+        # Executive Room - Organization 5 on Floor 2
+        if len(organizations) >= 5:
+            exec_org = organizations[4]  # 5th organization (Executive)
+            exec_org_name = exec_org.get("name", "Executive Leadership")
+            
+            # Get executive roles from Organization CRD
+            exec_dept_roles = self._get_department_roles(organization_crd_data, "executive")
+            
+            exec_branch = executive_room.add(f"📋 [gold1]{exec_org_name}[/gold1]")
+            
+            # CEO, CTO, COO, Assistant
+            exec_roles = ["ceo", "cto", "coo", "assistant"]
+            exec_titles = ["CEO", "CTO", "COO", "Executive Assistant"]
+            
+            # Use actual titles from Organization CRD if available
+            if exec_dept_roles:
+                actual_exec_titles = []
+                for role in exec_dept_roles.get("workers", []):
+                    if "ceo" in role.lower():
+                        actual_exec_titles.append(role)
+                    elif "cto" in role.lower():
+                        actual_exec_titles.append(role)
+                    elif "coo" in role.lower():
+                        actual_exec_titles.append(role)
+                
+                # Add missing titles
+                if len(actual_exec_titles) < 3:
+                    actual_exec_titles.extend(["CEO", "CTO", "COO"][len(actual_exec_titles):])
+                actual_exec_titles.append("Executive Assistant")
+                exec_titles = actual_exec_titles[:4]
+            
+            for i, (role_name, role_title) in enumerate(zip(exec_roles, exec_titles)):
+                desk_id = f"org05-{role_name}-re"
+                task_info = task_assignments.get(desk_id, {})
+                task_display = f" → [green]{task_info['task_name']}[/green]" if task_info else " [dim](standby)[/dim]"
+                exec_branch.add(f"👤 [white]{role_title}[/white] ({desk_id}){task_display}")
+        
+        return tree
+    
+    def _create_directory_structure_tree(self, base_path: Path, organizations: List[Dict[str, Any]]):
+        """Create directory structure tree"""
+        from rich.tree import Tree
+        
+        tree = Tree(f"📁 [bold cyan]{base_path.name}/[/bold cyan]")
+        
+        # Tasks directory
+        tasks_branch = tree.add("📁 [yellow]tasks/[/yellow] (Git Repository & Worktrees)")
+        tasks_branch.add("📁 [green]main/[/green] (Main Repository)")
+        
+        # Check for actual task directories and show them
+        tasks_path = base_path / "tasks"
+        task_count = 0
+        if tasks_path.exists():
+            task_dirs = [d for d in tasks_path.iterdir() if d.is_dir() and d.name != "main"]
+            if task_dirs:
+                for task_dir in sorted(task_dirs):
+                    # Try to get task description from assignment log
+                    task_display = task_dir.name
+                    assignment_log = task_dir / ".haconiwa" / "agent_assignment.json"
+                    if assignment_log.exists():
+                        try:
+                            import json
+                            with open(assignment_log, 'r', encoding='utf-8') as f:
+                                log_data = json.load(f)
+                                if not isinstance(log_data, list):
+                                    log_data = [log_data]
+                                if log_data and log_data[0].get("agent_id"):
+                                    agent_id = log_data[0]["agent_id"]
+                                    task_display = f"{task_dir.name} → {agent_id}"
+                        except:
+                            pass
+                    
+                    tasks_branch.add(f"📁 [cyan]{task_display}[/cyan] (Task Worktree)")
+                    task_count += 1
+        
+        # Show standby directory (created automatically)
+        standby_branch = tree.add("📁 [dim]standby/[/dim] (Unassigned Agents)")
+        
+        # Add summary info
+        if task_count > 0:
+            tree.add(f"[dim]📊 Active Tasks: {task_count} | Tmux Panes: 32 (16 per room)[/dim]")
+        else:
+            tree.add(f"[dim]📊 No active tasks | Tmux Panes: 32 (16 per room)[/dim]")
+        
+        return tree
+    
+    def _create_task_assignment_table(self, task_assignments: Dict[str, Any]):
+        """Create task assignment table"""
+        from rich.table import Table
+        
+        table = Table(show_header=True, header_style="bold cyan")
+        table.add_column("Task", style="green", width=40)
+        table.add_column("Room", style="blue", width=16)
+        table.add_column("Role", style="magenta", width=20)
+        table.add_column("Agent", style="yellow", width=20)
+        
+        if not task_assignments:
+            table.add_row("[dim]No task assignments[/dim]", "", "", "")
+            return table
+        
+        # Get organization data from Organization CRD for role information
+        organization_crd_data = self._get_organization_crd_for_display()
+        organizations = self._get_organization_data("synergy-development-org")
+        
+        # Add assignments for first 4 organizations (Alpha and Beta rooms)
+        for i, org in enumerate(organizations[:4]):
+            org_id = i + 1
+            org_name = org.get("name", f"Organization {org_id}")
+            department_id = org.get("department_id", "unknown")
+            
+            # Get actual roles for this department from Organization CRD
+            dept_roles = self._get_department_roles(organization_crd_data, department_id)
+            
+            # Room assignment based on organization ID
+            room_name = "Alpha Room" if i < 2 else "Beta Room"
+            room_id = "room-01" if i < 2 else "room-02"
+            
+            for j in range(4):  # 4 roles per organization
+                if j == 0:
+                    role_part = "pm"
+                    role_title = dept_roles.get("lead", "Team Lead") if dept_roles else "Project Manager"
+                else:
+                    role_part = f"wk-{chr(ord('a')+j-1)}"
+                    role_titles = dept_roles.get("workers", ["Senior Developer", "Developer", "Junior Developer"]) if dept_roles else ["Senior Developer", "Developer", "Junior Developer"]
+                    role_title = role_titles[j-1] if j-1 < len(role_titles) else f"Worker {chr(ord('A')+j-1)}"
+                
+                agent_id = f"org{org_id:02d}-{role_part}-{'r1' if i < 2 else 'r2'}"
+                
+                # Check for task assignment using the exact agent_id
+                assigned_task = ""
+                for task_agent_id, task_info in task_assignments.items():
+                    if task_agent_id == agent_id:
+                        assigned_task = task_info.get("task_name", "Unknown Task")
+                        break
+                
+                if not assigned_task:
+                    assigned_task = "[dim]standby[/dim]"
+                
+                table.add_row(assigned_task, room_name, role_title, agent_id)
+        
+        # Add Executive Leadership assignments (Organization 5)
+        if len(organizations) >= 5:
+            exec_org = organizations[4]  # 5th organization
+            exec_org_name = exec_org.get("name", "Executive Leadership")
+            
+            # Get executive roles from Organization CRD
+            exec_dept_roles = self._get_department_roles(organization_crd_data, "executive")
+            
+            # Executive roles
+            exec_roles = ["ceo", "cto", "coo", "assistant"]
+            exec_titles = ["CEO", "CTO", "COO", "Executive Assistant"]
+            
+            # Use actual titles from Organization CRD if available
+            if exec_dept_roles:
+                actual_exec_titles = []
+                exec_role_data = exec_dept_roles.get("workers", [])
+                for role_name in exec_role_data:
+                    if "ceo" in role_name.lower():
+                        actual_exec_titles.append(role_name)
+                    elif "cto" in role_name.lower():
+                        actual_exec_titles.append(role_name)
+                    elif "coo" in role_name.lower():
+                        actual_exec_titles.append(role_name)
+                
+                # Fill in missing standard titles
+                if len(actual_exec_titles) < 3:
+                    standard_titles = ["CEO", "CTO", "COO"]
+                    for title in standard_titles:
+                        if not any(title.lower() in t.lower() for t in actual_exec_titles):
+                            actual_exec_titles.append(title)
+                            if len(actual_exec_titles) >= 3:
+                                break
+                                
+                actual_exec_titles.append("Executive Assistant")
+                exec_titles = actual_exec_titles[:4]
+            
+            for i, (role_name, role_title) in enumerate(zip(exec_roles, exec_titles)):
+                agent_id = f"org05-{role_name}-re"
+                
+                # Check for task assignment using the exact agent_id
+                assigned_task = ""
+                for task_agent_id, task_info in task_assignments.items():
+                    if task_agent_id == agent_id:
+                        assigned_task = task_info.get("task_name", "Unknown Task")
+                        break
+                
+                if not assigned_task:
+                    assigned_task = "[dim]standby[/dim]"
+                
+                table.add_row(assigned_task, "Executive Room", role_title, agent_id)
+        
+        return table
+    
+    def _get_current_task_assignments(self) -> Dict[str, Dict[str, Any]]:
+        """Get current task assignments for display by reading from task directories"""
+        assignments = {}
+        
+        # First check stored task assignments
+        if hasattr(self, 'task_assignments') and self.task_assignments:
+            for agent_id, task_info in self.task_assignments.items():
+                # Extract room from agent ID (org01-pm-r1 → r1)
+                room = agent_id.split("-")[-1] if "-" in agent_id else "r1"
+                assignments[agent_id] = {
+                    "task_name": task_info.get("name", "Unknown Task"),
+                    "room": room,
+                    "status": "active"
+                }
+        
+        # Also check task directories for additional assignment info
+        for session_name, session_info in self.active_sessions.items():
+            config = session_info.get("config", {})
+            base_path = Path(config.get("base_path", "./"))
+            tasks_path = base_path / "tasks"
+            
+            if tasks_path.exists():
+                # Scan task directories for assignment logs
+                for task_dir in tasks_path.iterdir():
+                    if task_dir.is_dir() and task_dir.name != "main":
+                        assignment_log = task_dir / ".haconiwa" / "agent_assignment.json"
+                        if assignment_log.exists():
+                            try:
+                                import json
+                                with open(assignment_log, 'r', encoding='utf-8') as f:
+                                    log_data = json.load(f)
+                                    
+                                # Handle both single assignment and list format
+                                if not isinstance(log_data, list):
+                                    log_data = [log_data]
+                                
+                                for assignment in log_data:
+                                    agent_id = assignment.get("agent_id")
+                                    if agent_id and assignment.get("status") == "active":
+                                        room = agent_id.split("-")[-1] if "-" in agent_id else "r1"
+                                        assignments[agent_id] = {
+                                            "task_name": assignment.get("task_name", task_dir.name),
+                                            "room": room,
+                                            "status": "active"
+                                        }
+                                        
+                            except Exception as e:
+                                logger.debug(f"Could not read assignment log {assignment_log}: {e}")
+        
+        return assignments
+    
+    def _get_organization_crd_for_display(self) -> Optional[Dict[str, Any]]:
+        """Get Organization CRD data for display purposes"""
+        try:
+            # Try to get Organization CRD from applied resources
+            import sys
+            if hasattr(sys.modules.get('__main__'), '_current_applier'):
+                applier = getattr(sys.modules['__main__'], '_current_applier')
+                applied_resources = applier.get_applied_resources()
+                
+                # Find Organization CRD
+                for resource_key, resource in applied_resources.items():
+                    if resource_key.startswith("Organization/"):
+                        logger.debug(f"Found Organization CRD for display: {resource.metadata.name}")
+                        return resource
+            
+            return None
+            
+        except Exception as e:
+            logger.warning(f"Could not get Organization CRD for display: {e}")
+            return None
+    
+    def _get_department_roles(self, organization_crd, department_id: str) -> Optional[Dict[str, Any]]:
+        """Get roles for specific department from Organization CRD"""
+        try:
+            if not organization_crd:
+                return None
+            
+            # Find the department
+            for dept in organization_crd.spec.hierarchy.departments:
+                if dept.id == department_id:
+                    roles = dept.roles
+                    logger.debug(f"Found {len(roles)} roles for department {department_id}")
+                    
+                    # Extract lead and worker roles
+                    lead_role = None
+                    worker_roles = []
+                    
+                    for role in roles:
+                        role_type = getattr(role, 'roleType', '')
+                        title = getattr(role, 'title', '')
+                        
+                        # Identify lead roles (management type or specific titles)
+                        if (role_type == 'management' or 
+                            'lead' in title.lower() or 
+                            'manager' in title.lower() or
+                            'head' in title.lower()):
+                            lead_role = title
+                        else:
+                            worker_roles.append(title)
+                    
+                    # Ensure we have at least 3 worker roles for 32-pane structure
+                    while len(worker_roles) < 3:
+                        worker_roles.append(f"Worker {len(worker_roles) + 1}")
+                    
+                    return {
+                        "lead": lead_role or "Team Lead",
+                        "workers": worker_roles[:3]  # Take first 3 for consistency
+                    }
+            
+            return None
+            
+        except Exception as e:
+            logger.warning(f"Could not get roles for department {department_id}: {e}")
+            return None
  
