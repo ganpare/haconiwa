@@ -47,6 +47,8 @@ Thumbs.db
 /organizations/*/tasks/in-progress/*
 /organizations/*/tasks/done/*
 .haconiwa_cache/
+haconiwa-world/
+haconiwa-dev-world/
 
 # Test output and temporary directories
 test_output/

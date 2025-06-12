@@ -31,16 +31,19 @@
 pip install haconiwa --upgrade
 
 # 2. YAMLファイルダウンロード（GitHubから直接取得）
-wget https://raw.githubusercontent.com/dai-motoki/haconiwa/main/haconiwa-multiroom-test.yaml
+wget https://raw.githubusercontent.com/dai-motoki/haconiwa/main/test-multiroom-with-tasks.yaml
 
 # または curlでダウンロード
-curl -O https://raw.githubusercontent.com/dai-motoki/haconiwa/main/haconiwa-multiroom-test.yaml
+curl -O https://raw.githubusercontent.com/dai-motoki/haconiwa/main/test-multiroom-with-tasks.yaml
 
 # ファイル内容確認
-cat haconiwa-multiroom-test.yaml
+cat test-multiroom-with-tasks.yaml
 
-# 3. YAML適用でマルチルーム環境作成
-haconiwa apply -f haconiwa-multiroom-test.yaml
+# 3. YAML適用でマルチルーム環境作成（デフォルトで自動アタッチ）
+haconiwa apply -f test-multiroom-with-tasks.yaml
+
+# 3b. 自動アタッチなしで適用
+haconiwa apply -f test-multiroom-with-tasks.yaml --no-attach
 
 # 4. スペース一覧確認
 haconiwa space list
@@ -48,26 +51,26 @@ haconiwa space list
 # 5. スペース一覧確認（短縮形）
 haconiwa space ls
 
-# 6. 特定ルームに接続
-haconiwa space attach -c test-multiroom-company -r room-01
+# 6. 特定ルームに接続（自動アタッチしなかった場合）
+haconiwa space attach -c test-company-multiroom-tasks -r room-frontend
 
 # 7. 全ペインでclaudeコマンド実行
-haconiwa space run -c test-multiroom-company --claude-code
+haconiwa space run -c test-company-multiroom-tasks --claude-code
 
 # 8. 特定ルームでカスタムコマンド実行
-haconiwa space run -c test-multiroom-company --cmd "echo hello" -r room-01
+haconiwa space run -c test-company-multiroom-tasks --cmd "echo hello" -r room-backend
 
 # 9. ドライランでコマンド確認
-haconiwa space run -c test-multiroom-company --claude-code --dry-run
+haconiwa space run -c test-company-multiroom-tasks --claude-code --dry-run
 
 # 10. セッション停止
-haconiwa space stop -c test-multiroom-company
+haconiwa space stop -c test-company-multiroom-tasks
 
 # 11. 完全削除（ディレクトリも削除）
-haconiwa space delete -c test-multiroom-company --clean-dirs --force
+haconiwa space delete -c test-company-multiroom-tasks --clean-dirs --force
 
 # 12. 完全削除（ディレクトリは保持）
-haconiwa space delete -c test-multiroom-company --force
+haconiwa space delete -c test-company-multiroom-tasks --force
 ```
 
 **📁 自動作成されるマルチルーム構造（階層的法的フレームワーク）:**
@@ -185,7 +188,7 @@ test-multiroom-company (Session)
 
 **✅ YAML適用パターンの実際の機能:**
 - 🏢 **宣言型管理**: YAMLファイルによる環境定義
-- 🤖 **マルチルーム対応**: Room単位のWindow分離
+- 🤖 **マルチルーム対応**: Room単位のWindow分離（Frontend/Backend）
 - 🔄 **自動ルーム分散**: ルーム別Windowでのペイン配置
 - 🚀 **一括コマンド実行**: 全ペインまたはルーム別実行
 - 🎯 **柔軟なターゲティング**: ルーム指定コマンド実行
@@ -196,6 +199,193 @@ test-multiroom-company (Session)
 - 🔧 **ドライラン対応**: 実行前のコマンド確認
 - 🎯 **タスク割り当てシステム**: エージェント自動ディレクトリ移動
 - 📋 **ログファイル管理**: agent_assignment.jsonでの割り当て記録
+- 🔗 **自動アタッチ機能**: apply後に自動でセッションにアタッチ（--no-attachで無効化）
+- 🤖 **Claude自動実行**: 全ペインで作成後にclaudeコマンドを自動実行
+- 🏠 **相対パス対応**: ホームディレクトリ配下は~プレフィックスでクリーンな表示
+
+### 📝 YAML文法詳細解説
+
+Haconiwaの宣言型YAML設定は、複数のCRD (Custom Resource Definition) をマルチドキュメント形式で記述します。
+
+#### 1. Organization CRD（組織定義）
+
+```yaml
+apiVersion: haconiwa.dev/v1
+kind: Organization
+metadata:
+  name: test-org-multiroom-tasks  # 組織の一意識別子
+spec:
+  companyName: "Test Company Multiroom with Tasks"  # 会社名
+  industry: "Software Development"  # 業界
+  basePath: "./test-multiroom-tasks"  # 組織のベースパス
+  hierarchy:
+    departments:  # 部門定義
+    - id: "frontend"  # 部門ID（ルーム割り当てに使用）
+      name: "Frontend Team"
+      description: "Frontend development department"
+      roles:  # 役割定義
+      - roleType: "management"  # 管理職
+        title: "Frontend Lead"
+        responsibilities:
+          - "Frontend architecture"
+          - "Team coordination"
+      - roleType: "engineering"  # エンジニア
+        title: "UI Developer"
+        responsibilities:
+          - "UI component development"
+```
+
+**Organization CRDの主要要素:**
+- `metadata.name`: 組織の一意識別子（Space CRDから参照される）
+- `spec.hierarchy.departments`: 部門の定義（各部門がtmuxのルームに対応）
+- `spec.hierarchy.departments[].roles`: 各部門の役割定義（4つの役割で16ペインを構成）
+
+#### 2. Space CRD（空間定義）
+
+```yaml
+apiVersion: haconiwa.dev/v1
+kind: Space
+metadata:
+  name: test-world-multiroom-tasks  # スペースの一意識別子
+spec:
+  nations:  # 国レベル（最上位階層）
+  - id: jp
+    name: Japan
+    cities:  # 市レベル
+    - id: tokyo
+      name: Tokyo
+      villages:  # 村レベル
+      - id: tech-village
+        name: "Tech Village"
+        companies:  # 会社レベル（tmuxセッション）
+        - name: test-company-multiroom-tasks  # セッション名
+          grid: "8x4"  # グリッドサイズ（8列×4行=32ペイン）
+          basePath: "./test-world-multiroom-tasks"
+          organizationRef: "test-org-multiroom-tasks"  # 組織参照
+          gitRepo:  # Gitリポジトリ設定
+            url: "https://github.com/anthropics/claude-code.git"
+            defaultBranch: "main"
+            auth: "https"
+          buildings:  # 建物レベル
+          - id: "tech-tower"
+            name: "Tech Tower"
+            floors:  # 階層レベル
+            - id: "floor-1"
+              name: "Development Floor"
+              rooms:  # 部屋レベル（tmuxウィンドウ）
+              - id: room-frontend  # Frontend用ウィンドウ
+                name: "Frontend Room"
+              - id: room-backend   # Backend用ウィンドウ
+                name: "Backend Room"
+```
+
+**Space CRDの階層構造:**
+- `nations` > `cities` > `villages` > `companies` > `buildings` > `floors` > `rooms`
+- 各階層に法的フレームワーク（law/）を配置可能
+- `companies`がtmuxセッションに対応
+- `rooms`がtmuxウィンドウに対応
+
+#### 3. Task CRD（タスク定義）
+
+```yaml
+apiVersion: haconiwa.dev/v1
+kind: Task
+metadata:
+  name: task_react_components_01  # タスクの一意識別子
+spec:
+  taskId: task_react_components_01  # タスクID
+  title: "React Component Library"  # タスクタイトル
+  description: |  # マークダウン形式の詳細説明
+    ## React Component Library Development
+    
+    Build reusable React component library.
+    
+    ### Requirements:
+    - TypeScript components
+    - Storybook integration
+    - Unit tests
+    - Documentation
+  assignee: "org01-pm-r1"  # 割り当て先エージェントID
+  spaceRef: "test-company-multiroom-tasks"  # 所属スペース
+  priority: "high"  # 優先度（high/medium/low）
+  worktree: true  # Git worktreeを作成するか
+  branch: "feature/react-components"  # ブランチ名
+```
+
+**Task CRDのエージェントID規則:**
+- フォーマット: `org{組織番号}-{役割}-r{ルーム番号}`
+- 例: `org01-pm-r1` = 組織1のPM、ルーム1
+- 役割タイプ:
+  - `pm`: プロジェクトマネージャー（management roleType）
+  - `wk-a`, `wk-b`, `wk-c`: ワーカーA, B, C（engineering roleType）
+
+#### 4. マルチドキュメント構成
+
+```yaml
+# 組織定義
+---
+apiVersion: haconiwa.dev/v1
+kind: Organization
+metadata:
+  name: my-org
+spec:
+  # ...
+
+---
+# スペース定義
+apiVersion: haconiwa.dev/v1
+kind: Space
+metadata:
+  name: my-space
+spec:
+  # ...
+
+---
+# タスク定義（複数可）
+apiVersion: haconiwa.dev/v1
+kind: Task
+metadata:
+  name: task-1
+spec:
+  # ...
+```
+
+**YAMLファイル構成のベストプラクティス:**
+1. 組織定義を最初に配置
+2. スペース定義を次に配置
+3. タスク定義を最後に配置（ルームごとにグループ化推奨）
+4. `---`で各ドキュメントを区切る
+
+#### 5. エージェント自動配置ルール
+
+**ペイン配置の計算式:**
+- 総ペイン数 = grid列数 × grid行数（例: 8×4=32）
+- ルームあたりペイン数 = 総ペイン数 ÷ ルーム数（例: 32÷2=16）
+- 各組織4ペイン（PM×1 + Worker×3）
+
+**エージェントIDとペインの対応:**
+```
+Frontend Room (Window 0):
+- Pane 0-3:   org01 (PM, Worker-A, Worker-B, Worker-C)
+- Pane 4-7:   org02 (PM, Worker-A, Worker-B, Worker-C)
+- Pane 8-11:  org03 (PM, Worker-A, Worker-B, Worker-C)
+- Pane 12-15: org04 (PM, Worker-A, Worker-B, Worker-C)
+
+Backend Room (Window 1):
+- Pane 0-3:   org01 (PM, Worker-A, Worker-B, Worker-C)
+- Pane 4-7:   org02 (PM, Worker-A, Worker-B, Worker-C)
+- Pane 8-11:  org03 (PM, Worker-A, Worker-B, Worker-C)
+- Pane 12-15: org04 (PM, Worker-A, Worker-B, Worker-C)
+```
+
+#### 6. 実行時の処理フロー
+
+1. **YAMLパース**: マルチドキュメントを個別のCRDオブジェクトに分解
+2. **組織作成**: Organization CRDから部門・役割構造を構築
+3. **スペース作成**: Space CRDからtmuxセッション・ウィンドウ構造を構築
+4. **タスク作成**: Task CRDからGit worktreeとタスク割り当てを作成
+5. **エージェント配置**: assigneeに基づいてペインをタスクディレクトリに移動
+6. **Claude実行**: 各ペインで`cd {path} && claude`を自動実行
 
 ### tmux マルチエージェント環境（従来方式）
 
@@ -270,6 +460,118 @@ haconiwa company kill my-company --force
 - 🏛️ **会社管理**: 作成・一覧・接続・削除の完全サポート
 - 📄 **README自動生成**: 各デスクにREADME.md自動作成
 - 📊 **4x4マルチエージェント**: 組織的tmuxレイアウト（16ペイン）
+
+### 📊 リアルタイムモニタリング機能 ✅ **テスト済み**
+
+作成したtmuxマルチエージェント環境を**リアルタイムで監視**できます：
+
+```bash
+# 1. 基本的なモニタリング（全window表示）
+haconiwa monitor -c test-company-multiroom-tasks
+
+# 2. 短縮形エイリアス
+haconiwa mon -c my-company
+
+# 3. 日本語UI表示
+haconiwa monitor -c my-company --japanese
+
+# 4. 特定のwindow（部屋）のみ監視
+haconiwa monitor -c test-company-multiroom-tasks -w 0          # Frontend部屋のみ
+haconiwa monitor -c test-company-multiroom-tasks -w Backend   # Backend部屋のみ
+
+# 5. 表示列をカスタマイズ（推奨設定）
+haconiwa monitor -c my-company --columns room pane title claude agent cpu status --japanese
+
+# 6. 高頻度更新（パフォーマンス調整）
+haconiwa monitor -c my-company -r 0.5 --japanese  # 0.5秒間隔更新
+
+# 7. 低頻度更新（CPUリソース節約）
+haconiwa monitor -c my-company -r 5 --japanese    # 5秒間隔更新
+
+# 8. ミニマル表示（最小限の情報）
+haconiwa monitor -c my-company --columns pane agent status --japanese
+```
+
+**🖥️ リアルタイム表示内容:**
+```
+💼  会社名: test-company-multiroom-tasks
+
+        アクティブペイン: 22/32
+        平均稼働率: 0.8%
+        合計メモリ: 551.3MB
+        最終更新: 11:15:42
+
+🏢  部屋: Frontend
+┏━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
+┃ ペイン ┃ タスク          ┃ プロバイダAI   ┃ エージェント名      ┃ 稼働率                                                               ┃ ステータス  ┃
+┡━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
+│ 0      │ Greeting        │ ✓ Claude       │ lead-pm-01          │   0.1% ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                 │  仕事待ち   │
+│ 1      │ Greeting Start  │ ✓ Claude       │ motoki              │   0.2% ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                 │  仕事待ち   │
+│ 2      │ Greeting        │ ✓ Claude       │ ai-dev-7523         │   0.1% ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                 │  仕事待ち   │
+└────────┴─────────────────┴─────────────────┴─────────────────────┴──────────────────────────────────────────────────────────────────────┴─────────────┘
+
+🏢  部屋: Backend  
+┏━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
+┃ ペイン ┃ タスク          ┃ プロバイダAI   ┃ エージェント名      ┃ 稼働率                                                               ┃ ステータス  ┃
+┡━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
+│ 0      │ Backend Task    │ ✗ Claude無し   │ lead-pm-01          │ N/A                                                                  │ プロセス無し │
+│ 1      │ API Development │ ✓ Claude       │ motoki              │   2.3% ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                 │  作業中     │
+└────────┴─────────────────┴─────────────────┴─────────────────────┴──────────────────────────────────────────────────────────────────────┴─────────────┘
+```
+
+**✅ 実装・テスト済み機能:**
+- 🔍 **リアルタイム監視**: 2秒間隔でのライブ更新
+- 🏢 **複数window対応**: Frontend/Backend等の部屋別表示
+- 👥 **カスタムエージェントID表示**: 個人名やカスタムIDの完全サポート
+- 🎨 **視覚的CPU稼働率バー**: カラフルなプログレスバー表示
+- 🇯🇵 **完全日本語UI**: 列名・ステータス・メッセージの日本語化
+- 📊 **柔軟な列選択**: 必要な情報のみ表示可能
+- 🎯 **window指定監視**: 特定の部屋のみに絞り込み可能
+- 🚀 **高性能監視**: psutil + Rich による高速リアルタイム更新
+- 📈 **智能ステータス判定**: CPU使用率に基づく自動ステータス判定
+- 💼 **会社概要サマリー**: アクティブペイン数・平均CPU・合計メモリ
+- 🎮 **短縮形エイリアス**: `mon` でクイックアクセス
+- ⚡ **依存関係チェック**: 必要パッケージの自動確認
+
+**📊 利用可能な表示列:**
+- `room` - 部屋/Window名（Frontend/Backend等）
+- `window` - Window番号
+- `pane` - ペイン番号
+- `title` - タスクタイトル
+- `parent` - 親プロセスID
+- `claude` - プロバイダAI状態（✓/✗）
+- `agent` - カスタムエージェントID
+- `cpu` - CPU使用率（視覚的バー付き）
+- `memory` - メモリ使用量
+- `uptime` - プロセス稼働時間
+- `status` - エージェントステータス（仕事待ち/作業中/多忙）
+
+**🎯 状態判定ルール:**
+- **仕事待ち** (≤2.0% CPU): 待機状態、新しいタスク受付可能
+- **作業中** (2.0-20% CPU): アクティブに作業中
+- **多忙** (>20% CPU): 高負荷作業中、割り込み注意
+
+**💡 使用例・Tips:**
+```bash
+# 開発作業中の推奨監視設定
+haconiwa monitor -c my-company --columns room pane agent cpu status --japanese -r 1
+
+# 詳細デバッグ時
+haconiwa monitor -c my-company --columns room pane title claude agent cpu memory status --japanese
+
+# 軽量監視（リソース節約）
+haconiwa monitor -c my-company --columns pane agent status --japanese -r 10
+
+# Frontend部屋の集中監視
+haconiwa monitor -c my-company -w 0 --japanese
+```
+
+**🔧 必要な依存関係:**
+- `rich` - リッチなターミナルUI表示
+- `psutil` - プロセス情報取得
+- `tmux` - セッション管理
+
+monitor機能は**実際にテスト済み**で、32ペインの大規模マルチエージェント環境でも安定動作を確認しています。
 
 ## 📚 buildコマンド詳細ガイド
 
@@ -576,9 +878,19 @@ git-worktreeと連携したタスク管理
 
 ### `world` - ワールド管理
 開発環境とワールドの管理
-- `haconiwa world create <name>` - 新しい開発ワールドを作成
+- `haconiwa world create <n>` - 新しい開発ワールドを作成
 - `haconiwa world list` - ワールド一覧表示
-- `haconiwa world switch <name>` - ワールド切り替え
+- `haconiwa world switch <n>` - ワールド切り替え
+
+### `monitor` - リアルタイム監視コマンド ✅ **テスト済み**
+tmuxマルチエージェント環境のリアルタイム監視と可視化
+- `haconiwa monitor -c <company>` - 基本監視（全window表示）
+- `haconiwa mon -c <company>` - 短縮形エイリアス  
+- `haconiwa monitor -c <company> --japanese` - 日本語UI
+- `haconiwa monitor -c <company> -w <window>` - 特定window監視
+- `haconiwa monitor -c <company> --columns <cols>` - カスタム列表示
+- `haconiwa monitor -c <company> -r <interval>` - 更新間隔調整
+- `haconiwa monitor help` - 詳細ヘルプ表示
 
 ## 🛠️ 開発状況
 
@@ -594,6 +906,12 @@ git-worktreeと連携したタスク管理
 - **組織・タスク・デスクカスタマイズ機能**
 - **会社の自動存在チェックと更新機能**
 - **柔軟なクリーンアップシステム**
+- **📊 リアルタイムモニタリングシステム（monitor/mon コマンド）**
+- **🏢 複数window対応のマルチエージェント監視**
+- **👥 カスタムエージェントID表示機能**
+- **🇯🇵 完全日本語UI対応**
+- **🎨 視覚的CPU稼働率表示**
+- **📈 智能ステータス自動判定機能**
 - ヘルプシステムとコマンドドキュメント
 - コマンドグループの組織化とルーティング
 

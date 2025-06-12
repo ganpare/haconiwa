@@ -306,6 +306,7 @@ class RoleConfig(BaseModel):
     title: str = Field(..., description="Role title: CEO, CTO, PM, Senior Developer, etc.")
     responsibilities: List[str] = Field(default_factory=list, description="List of responsibilities")
     reportsTo: Optional[str] = Field(None, description="ID of parent role")
+    agentId: Optional[str] = Field(None, description="Unique agent ID for this role")
 
 
 class DepartmentConfig(BaseModel):

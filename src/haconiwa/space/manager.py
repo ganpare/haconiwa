@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 import logging
+import json
 
 from ..core.crd.models import SpaceCRD
 
@@ -76,11 +77,11 @@ class SpaceManager:
                 if not success:
                     logger.warning("Failed to set up Git repository in tasks/main/, continuing without Git")
             
-            # Generate desk mappings with organization info
-            desk_mappings = self.generate_desk_mappings(organizations)
+            # Generate desk mappings with organization info and room configuration
+            desk_mappings = self.generate_desk_mappings(organizations, rooms, grid, base_path)
             
-            # Create tmux session (initial window 0)
-            self._create_tmux_session(session_name)
+            # Create tmux session (initial window 0) with base_path as working directory
+            self._create_tmux_session(session_name, base_path)
             
             # Configure pane borders and titles (same as company build)
             self._configure_pane_borders(session_name)
@@ -147,14 +148,22 @@ class SpaceManager:
                 "session_name": session_name
             }
             
+            # Calculate actual pane count
+            cols, rows = map(int, grid.split('x'))
+            total_panes = cols * rows
+            panes_per_room = total_panes // len(rooms) if len(rooms) > 1 else total_panes
+            
             # Display created directory structure
-            self._display_created_structure(base_path, organizations)
+            self._display_created_structure(base_path, organizations, total_panes, len(rooms))
+            
+            # Claude command will be sent after directory change in _update_pane_in_window
+            # self._send_claude_command_to_all_panes(session_name, rooms, desk_distribution)
             
             logger.info(f"✅ Multiroom session '{session_name}' created successfully")
             logger.info(f"   📁 Base directory: {base_path}")
             logger.info(f"   🏢 Organizations: {len(organizations)}")
-            logger.info(f"   🚪 Rooms: {len(rooms)} (Alpha & Beta)")
-            logger.info(f"   🖥️ Panes: 32 (16 per room)")
+            logger.info(f"   🚪 Rooms: {len(rooms)}")
+            logger.info(f"   🖥️ Panes: {total_panes} total ({panes_per_room} per room)" if len(rooms) > 1 else f"   🖥️ Panes: {total_panes}")
             
             return True
             
@@ -162,123 +171,132 @@ class SpaceManager:
             logger.error(f"Failed to create multiroom session {config.get('name', 'unknown')}: {e}")
             return False
     
-    def generate_desk_mappings(self, organizations: List[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
-        """Generate desk mappings for multi-room layout with Executive floor"""
+    def generate_desk_mappings(self, organizations: List[Dict[str, Any]] = None, rooms: List[Dict[str, Any]] = None, grid: str = "8x4", base_path: Path = None) -> List[Dict[str, Any]]:
+        """Generate desk mappings based on actual room configuration and grid size"""
         if not organizations:
             # Fallback to default organization names
-            organizations = [
-                {"id": "01", "name": "Frontend Development Team", "department_id": "frontend"},
-                {"id": "02", "name": "Backend Development Team", "department_id": "backend"},
-                {"id": "03", "name": "DevOps Infrastructure Team", "department_id": "devops"},
-                {"id": "04", "name": "Quality Assurance Team", "department_id": "qa"},
-                {"id": "05", "name": "Executive Leadership", "department_id": "executive"}
-            ]
+            organizations = [{"id": "01", "name": "Default Organization", "department_id": "dev"}]
+        
+        if not rooms:
+            # Fallback to default room if none provided
+            rooms = [{"id": "room-01", "name": "Main Room"}]
         
         mappings = []
         
-        # Ensure we have at least 5 organizations
-        while len(organizations) < 5:
-            org_id = f"{len(organizations) + 1:02d}"
-            organizations.append({"id": org_id, "name": f"Organization {len(organizations) + 1}", "department_id": "unknown"})
+        # Calculate desks needed per room based on grid
+        try:
+            cols, rows = map(int, grid.split('x'))
+            total_panes = cols * rows
+            panes_per_room = total_panes // len(rooms) if len(rooms) > 0 else total_panes
+        except:
+            total_panes = 32
+            panes_per_room = 16
         
-        # Room-01 (Alpha Room) - Organizations 1-2
-        for i, org in enumerate(organizations[:2]):  # First 2 organizations
-            org_id = i + 1
-            org_name = org.get("name", f"Org-{org_id:02d}")
+        desk_counter = 0
+        
+        # Try to get organization CRD for role details
+        organization_crd = self._get_organization_crd_for_display()
+        dept_roles_cache = {}
+        
+        # Generate desk mappings for each room
+        for room_idx, room in enumerate(rooms):
+            room_id = room["id"]
+            room_name = room.get("name", room_id)
             
-            for role_id in range(4):  # pm, worker-a, worker-b, worker-c
-                desk_id = f"desk-{org_id:02d}{role_id:02d}"
-                role_name = "pm" if role_id == 0 else f"worker-{chr(ord('a') + role_id - 1)}"
-                
-                # Directory naming: 01pm, 01a, 01b, 01c
-                if role_name == "pm":
-                    dir_name = f"{org_id:02d}pm"
+            # Calculate room number for agent ID format
+            room_num = room_idx + 1  # r1, r2, etc.
+            
+            # Generate enough desks to fill all panes in this room
+            for desk_idx in range(panes_per_room):
+                # Determine organization assignment
+                if organizations:
+                    org_idx = desk_idx % len(organizations)
+                    org = organizations[org_idx]
+                    org_id = org.get("id", f"{org_idx+1:02d}")
+                    org_name = org.get("name", f"Organization {org_idx+1}")
+                    dept_id = org.get("department_id", "dev")
                 else:
-                    worker_suffix = role_name.split("-")[1]  # a, b, c
-                    dir_name = f"{org_id:02d}{worker_suffix}"
+                    org_id = "01"
+                    org_name = "Default Organization"
+                    dept_id = "dev"
                 
-                # Create title with organization name
-                role_display = "PM" if role_name == "pm" else role_name.upper()
-                title = f"{org_name} - {role_display} - Alpha Room"
+                # Determine role based on desk position within organization
+                org_desk_count = panes_per_room // len(organizations) if organizations else panes_per_room
+                desk_in_org = desk_idx % org_desk_count if org_desk_count > 0 else desk_idx
+                
+                # Try to get specific agent ID from organization CRD
+                agent_id = None
+                role_name = None
+                
+                if organization_crd and dept_id:
+                    # Cache department roles to avoid repeated lookups
+                    if dept_id not in dept_roles_cache:
+                        dept_roles_cache[dept_id] = self._get_department_roles(organization_crd, dept_id)
+                    
+                    dept_roles = dept_roles_cache[dept_id]
+                    if dept_roles:
+                        # Map desk position to role
+                        if desk_in_org == 0 and dept_roles.get('lead_role'):
+                            role_obj = dept_roles['lead_role']
+                            agent_id = getattr(role_obj, 'agentId', None)
+                            role_name = "pm"  # Keep consistent role name
+                        elif desk_in_org > 0 and dept_roles.get('worker_roles'):
+                            worker_idx = desk_in_org - 1
+                            worker_roles = dept_roles['worker_roles']
+                            if worker_idx < len(worker_roles):
+                                role_obj = worker_roles[worker_idx]
+                                agent_id = getattr(role_obj, 'agentId', None)
+                                role_name = f"wk-{chr(ord('a') + worker_idx)}" if worker_idx < 26 else f"wk-{worker_idx}"
+                
+                # Fall back to default agent ID generation if not specified
+                if not agent_id:
+                    if desk_in_org == 0:
+                        role_name = "pm"
+                    else:
+                        worker_idx = desk_in_org - 1
+                        role_name = f"wk-{chr(ord('a') + worker_idx)}" if worker_idx < 26 else f"wk-{worker_idx}"
+                    
+                    # Generate agent ID in expected format
+                    agent_id = f"org{org_id}-{role_name}-r{room_num}"
+                desk_id = f"desk-{room_id}-{org_id}-{desk_idx:02d}"
+                dir_name = f"{org_id}{role_name.replace('wk-', '')}"
+                title = f"{org_name} - {role_name.upper()} - {room_name}"
                 
                 mappings.append({
                     "desk_id": desk_id,
-                    "org_id": f"org-{org_id:02d}",
+                    "agent_id": agent_id,
+                    "org_id": f"org-{org_id}",
                     "role": role_name,
-                    "room_id": "room-01",
+                    "room_id": room_id,
                     "directory_name": dir_name,
                     "title": title
                 })
+                desk_counter += 1
         
-        # Room-02 (Beta Room) - Organizations 3-4
-        for i, org in enumerate(organizations[2:4]):  # Organizations 3-4
-            org_id = i + 3
-            org_name = org.get("name", f"Org-{org_id:02d}")
-            
-            for role_id in range(4):  # pm, worker-a, worker-b, worker-c
-                desk_id = f"desk-{org_id:02d}{role_id:02d}"
-                role_name = "pm" if role_id == 0 else f"worker-{chr(ord('a') + role_id - 1)}"
-                
-                # Directory naming: 03pm, 03a, 03b, 03c, 04pm, 04a, 04b, 04c
-                if role_name == "pm":
-                    dir_name = f"{org_id:02d}pm"
-                else:
-                    worker_suffix = role_name.split("-")[1]  # a, b, c
-                    dir_name = f"{org_id:02d}{worker_suffix}"
-                
-                # Create title with organization name
-                role_display = "PM" if role_name == "pm" else role_name.upper()
-                title = f"{org_name} - {role_display} - Beta Room"
-                
-                mappings.append({
-                    "desk_id": desk_id,
-                    "org_id": f"org-{org_id:02d}",
-                    "role": role_name,
-                    "room_id": "room-02",
-                    "directory_name": dir_name,
-                    "title": title
-                })
+        logger.info(f"Generated {len(mappings)} desk mappings for {len(rooms)} rooms")
         
-        # Executive Room - Organization 5 (Executive Leadership)
-        if len(organizations) >= 5:
-            org = organizations[4]  # 5th organization (Executive)
-            org_id = 5
-            org_name = org.get("name", "Executive Leadership")
-            
-            logger.info(f"Generating Executive Room mappings for: {org_name}")
-            
-            # CEO, CTO, COO (3 executives + 1 assistant)
-            executive_roles = ["ceo", "cto", "coo", "assistant"]
-            executive_titles = ["CEO", "CTO", "COO", "Executive Assistant"]
-            
-            for role_id, (role_name, role_title) in enumerate(zip(executive_roles, executive_titles)):
-                desk_id = f"desk-exec-{role_id:02d}"
-                
-                # Directory naming: exec-ceo, exec-cto, exec-coo, exec-assistant
-                dir_name = f"exec-{role_name}"
-                
-                # Create title with executive role
-                title = f"{org_name} - {role_title} - Executive Room"
-                
-                mapping = {
-                    "desk_id": desk_id,
-                    "org_id": f"org-05",
-                    "role": role_name,
-                    "room_id": "room-executive",
-                    "directory_name": dir_name,
-                    "title": title
-                }
-                
-                logger.debug(f"Generated Executive mapping {role_id}: {mapping}")
-                mappings.append(mapping)
-            
-            logger.info(f"Generated {len(executive_roles)} Executive Room mappings")
+        # Store the mappings for later use
+        self._current_desk_mappings = mappings
         
-        logger.info(f"Total mappings generated: {len(mappings)}")
+        # Save desk mappings to file for later retrieval
+        if base_path:
+            try:
+                haconiwa_dir = base_path / ".haconiwa"
+                haconiwa_dir.mkdir(exist_ok=True)
+                desk_mappings_file = haconiwa_dir / "desk_mappings.json"
+                with open(desk_mappings_file, 'w') as f:
+                    json.dump(mappings, f, indent=2)
+                logger.debug(f"Saved desk mappings to {desk_mappings_file}")
+            except Exception as e:
+                logger.warning(f"Could not save desk mappings: {e}")
+        
         return mappings
     
     def convert_crd_to_config(self, crd: SpaceCRD) -> Dict[str, Any]:
         """Convert Space CRD to internal configuration"""
+        # Store the current Space CRD for reference
+        self._current_space_crd = crd
+        
         # Navigate through the CRD structure to get company config
         company = crd.spec.nations[0].cities[0].villages[0].companies[0]
         
@@ -287,17 +305,51 @@ class SpaceManager:
         if base_path is None:
             base_path = f"./{crd.metadata.name}"
         
+        # Extract rooms from CRD structure
+        rooms = []
+        if company.buildings and len(company.buildings) > 0:
+            building = company.buildings[0]
+            if building.floors:
+                for floor in building.floors:
+                    if floor.rooms:
+                        for room in floor.rooms:
+                            rooms.append({
+                                "id": room.id,
+                                "name": room.name,
+                                "description": getattr(room, 'description', '')
+                            })
+        
+        # If no rooms defined in CRD, create default based on grid
+        if not rooms:
+            grid_parts = company.grid.split('x')
+            if len(grid_parts) == 2:
+                cols, rows = int(grid_parts[0]), int(grid_parts[1])
+                total_panes = cols * rows
+                
+                if total_panes <= 4:
+                    # Single room for small grids
+                    rooms = [{"id": "room-01", "name": "Main Room"}]
+                elif total_panes <= 16:
+                    # Two rooms for medium grids
+                    rooms = [
+                        {"id": "room-01", "name": "Alpha Room"},
+                        {"id": "room-02", "name": "Beta Room"}
+                    ]
+                else:
+                    # Three rooms for large grids
+                    rooms = [
+                        {"id": "room-01", "name": "Alpha Room"},
+                        {"id": "room-02", "name": "Beta Room"},
+                        {"id": "room-executive", "name": "Executive Room"}
+                    ]
+        
         config = {
             "name": company.name,
             "grid": company.grid,
             "base_path": base_path,
             "git_repo": None,
             "organizations": [],
-            "rooms": [
-                {"id": "room-01", "name": "Alpha Room"},
-                {"id": "room-02", "name": "Beta Room"},
-                {"id": "room-executive", "name": "Executive Room"}
-            ]
+            "rooms": rooms
         }
         
         # Add git repository config if specified
@@ -315,14 +367,10 @@ class SpaceManager:
             organizations = self._get_organization_data(organization_ref)
             config["organizations"] = organizations
         else:
-            # Fallback to default organizations if no organizationRef
-            logger.warning("No organizationRef found, using default organizations")
+            # Fallback to simple organization if no organizationRef
+            logger.warning("No organizationRef found, using simple organization")
             config["organizations"] = [
-                {"id": "01", "name": "Frontend Development Team", "department_id": "frontend"},
-                {"id": "02", "name": "Backend Development Team", "department_id": "backend"},
-                {"id": "03", "name": "DevOps Infrastructure Team", "department_id": "devops"},
-                {"id": "04", "name": "Quality Assurance Team", "department_id": "qa"},
-                {"id": "05", "name": "Executive Leadership", "department_id": "executive"}
+                {"id": "01", "name": company.name or "default-org", "department_id": "default"}
             ]
         
         return config
@@ -352,6 +400,9 @@ class SpaceManager:
                 pass
             
             # Look for Organization CRD in applied resources
+            logger.info(f"Looking for Organization CRD: {organization_ref}")
+            logger.info(f"Available resources: {list(applied_resources.keys())}")
+            
             for resource_key, resource in applied_resources.items():
                 if resource_key.startswith("Organization/") and resource.metadata.name == organization_ref:
                     organization_crd = resource
@@ -359,37 +410,31 @@ class SpaceManager:
                     break
             
             if organization_crd:
-                # Map Organization CRD departments to 32-pane structure (4 orgs × 4 roles × 2 rooms)
+                # Map Organization CRD departments to 32-pane structure
                 departments = organization_crd.spec.hierarchy.departments
                 logger.info(f"Found {len(departments)} departments in Organization CRD")
                 
-                # Create organization mapping based on departments
+                # Create organization mapping based on actual departments
                 organizations = []
                 
-                # Map departments to 4 organizations for 32-pane layout
-                department_mapping = [
-                    ("frontend", "Frontend Development Team"),
-                    ("backend", "Backend Development Team"), 
-                    ("devops", "DevOps Infrastructure Team"),
-                    ("qa", "Quality Assurance Team"),
-                    ("executive", "Executive Leadership")  # 5番目の組織として追加
-                ]
-                
-                for i, (dept_id, default_name) in enumerate(department_mapping):
-                    org_id = f"{i+1:02d}"
+                # If we have actual departments, use them
+                if departments:
+                    for i, dept in enumerate(departments[:5]):  # Up to 5 departments for our layout
+                        org_id = f"{i+1:02d}"
+                        organizations.append({
+                            "id": org_id,
+                            "name": dept.name,
+                            "department_id": dept.id
+                        })
+                        logger.info(f"Added department {dept.id} → {dept.name}")
                     
-                    # Find matching department in Organization CRD
-                    dept_name = default_name
-                    for dept in departments:
-                        if dept.id == dept_id:
-                            dept_name = dept.name
-                            logger.info(f"Mapped department {dept_id} → {dept_name}")
-                            break
-                    
+                else:
+                    # No departments defined, create a simple organization
+                    logger.warning("No departments found in Organization CRD, creating simple organization")
                     organizations.append({
-                        "id": org_id,
-                        "name": dept_name,
-                        "department_id": dept_id
+                        "id": "01",
+                        "name": organization_ref,
+                        "department_id": "default"
                     })
                 
                 # If we have executive department, map it to all organizations (leadership structure)
@@ -411,33 +456,35 @@ class SpaceManager:
                 
             else:
                 logger.warning(f"Organization CRD {organization_ref} not found in applied resources")
-                # Fallback to enhanced default based on common department structure
-                logger.info("Using enhanced default organization mapping")
+                # Fallback to simple organization
+                logger.info("Using simple organization mapping")
                 return [
-                    {"id": "01", "name": "Frontend Development Team", "department_id": "frontend"},
-                    {"id": "02", "name": "Backend Development Team", "department_id": "backend"},
-                    {"id": "03", "name": "DevOps Infrastructure Team", "department_id": "devops"},
-                    {"id": "04", "name": "Quality Assurance Team", "department_id": "qa"},
-                    {"id": "05", "name": "Executive Leadership", "department_id": "executive"}
+                    {"id": "01", "name": organization_ref or "default-org", "department_id": "default"}
                 ]
             
         except Exception as e:
             logger.error(f"Failed to get organization data for {organization_ref}: {e}")
-            # Fallback to default organizations
+            # Fallback to simple organization
             return [
-                {"id": "01", "name": "Frontend Development Team", "department_id": "frontend"},
-                {"id": "02", "name": "Backend Development Team", "department_id": "backend"},
-                {"id": "03", "name": "DevOps Infrastructure Team", "department_id": "devops"},
-                {"id": "04", "name": "Quality Assurance Team", "department_id": "qa"},
-                {"id": "05", "name": "Executive Leadership", "department_id": "executive"}
+                {"id": "01", "name": organization_ref or "default-org", "department_id": "default"}
             ]
     
-    def _create_tmux_session(self, session_name: str):
-        """Create tmux session"""
+    def _create_tmux_session(self, session_name: str, base_path: Path = None):
+        """Create tmux session with optional working directory"""
         cmd = ["tmux", "new-session", "-d", "-s", session_name]
+        if base_path:
+            # Create session with specific working directory
+            abs_path = str(base_path.absolute())
+            cmd.extend(["-c", abs_path])
+            logger.info(f"Creating tmux session with working directory: {abs_path}")
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             raise SpaceManagerError(f"Failed to create tmux session: {result.stderr}")
+        
+        # Also set default-path for the session to ensure new windows inherit it
+        if base_path:
+            set_cmd = ["tmux", "set-option", "-t", session_name, "default-path", str(base_path.absolute())]
+            subprocess.run(set_cmd, capture_output=True, text=True)
     
     def _create_windows_for_rooms(self, session_name: str, rooms: List[Dict[str, Any]]) -> bool:
         """Create tmux windows for each room"""
@@ -458,6 +505,18 @@ class SpaceManager:
                     logger.error(f"Failed to create window {i} ({window_name}): {result.stderr}")
                     return False
                 
+                # Apply pane border settings to the new window
+                subprocess.run(
+                    ["tmux", "set-option", "-t", f"{session_name}:{i}", 
+                     "pane-border-status", "top"],
+                    capture_output=True, text=True
+                )
+                subprocess.run(
+                    ["tmux", "set-option", "-t", f"{session_name}:{i}", 
+                     "pane-border-format", "#{pane_title}"],
+                    capture_output=True, text=True
+                )
+                
                 logger.info(f"Created window {i}: {window_name}")
             
             return True
@@ -469,25 +528,54 @@ class SpaceManager:
     def _create_panes_in_window(self, session_name: str, window_id: str, pane_count: int) -> bool:
         """Create panes in specific tmux window - supports different layouts"""
         try:
-            if pane_count == 4:
-                # Executive Room layout: 1x4 (4 panes in a row)
-                # Split horizontally 3 times to create 4 columns
+            if pane_count == 1:
+                # Single pane, already exists
+                logger.info(f"Window {window_id} already has 1 pane")
+                return True
+            
+            elif pane_count == 2:
+                # Split horizontally once
+                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.0"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create horizontal split in window {window_id}: {result.stderr}")
+                logger.info(f"Created {pane_count} panes in window {window_id} (2x1 layout)")
+                return True
+                
+            elif pane_count == 3:
+                # 1x3 layout: Split horizontally twice
                 cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.0"]
                 result = subprocess.run(cmd, capture_output=True, text=True)
                 if result.returncode != 0:
                     logger.warning(f"Failed to create horizontal split 1 in window {window_id}: {result.stderr}")
                 
-                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.0"]
+                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.1"]
                 result = subprocess.run(cmd, capture_output=True, text=True)
                 if result.returncode != 0:
                     logger.warning(f"Failed to create horizontal split 2 in window {window_id}: {result.stderr}")
                 
-                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.1"]
+                logger.info(f"Created {pane_count} panes in window {window_id} (1x3 layout)")
+                return True
+                
+            elif pane_count == 4:
+                # 2x2 layout or 1x4 layout
+                # Split horizontally once, then split each vertically
+                cmd = ["tmux", "split-window", "-h", "-t", f"{session_name}:{window_id}.0"]
                 result = subprocess.run(cmd, capture_output=True, text=True)
                 if result.returncode != 0:
-                    logger.warning(f"Failed to create horizontal split 3 in window {window_id}: {result.stderr}")
+                    logger.warning(f"Failed to create horizontal split 1 in window {window_id}: {result.stderr}")
                 
-                logger.info(f"Created {pane_count} panes in window {window_id} (1x4 Executive layout)")
+                cmd = ["tmux", "split-window", "-v", "-t", f"{session_name}:{window_id}.0"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create vertical split 1 in window {window_id}: {result.stderr}")
+                
+                cmd = ["tmux", "split-window", "-v", "-t", f"{session_name}:{window_id}.2"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to create vertical split 2 in window {window_id}: {result.stderr}")
+                
+                logger.info(f"Created {pane_count} panes in window {window_id} (2x2 layout)")
                 return True
                 
             elif pane_count == 8:
@@ -524,7 +612,7 @@ class SpaceManager:
                 logger.info(f"Created {pane_count} panes in window {window_id} (2x4 layout)")
                 return True
                 
-            else:
+            elif pane_count == 16:
                 # Default 4x4 layout (16 panes) - existing logic
                 # Split vertically 3 times to create 4 rows
                 cmd = ["tmux", "split-window", "-v", "-t", f"{session_name}:{window_id}.0"]
@@ -615,6 +703,51 @@ class SpaceManager:
                 
                 logger.info(f"Created {pane_count} panes in window {window_id} (4x4 layout)")
                 return True
+                
+            elif pane_count == 32:
+                # 8x4 layout (32 panes)
+                # Create 8x4 grid using a more efficient approach
+                # Use tiled layout after creating all panes
+                
+                # Create 31 additional panes (we already have 1)
+                for i in range(31):
+                    cmd = ["tmux", "split-window", "-t", f"{session_name}:{window_id}"]
+                    result = subprocess.run(cmd, capture_output=True, text=True)
+                    if result.returncode != 0:
+                        logger.warning(f"Failed to create pane {i+2} in window {window_id}: {result.stderr}")
+                
+                # Apply tiled layout to arrange them in a grid
+                cmd = ["tmux", "select-layout", "-t", f"{session_name}:{window_id}", "tiled"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to apply tiled layout to window {window_id}: {result.stderr}")
+                
+                logger.info(f"Created {pane_count} panes in window {window_id} (8x4 layout)")
+                return True
+            
+            else:
+                # Generic case: create required number of panes and use tiled layout
+                # For large pane counts, apply tiled layout periodically to make room
+                for i in range(pane_count - 1):
+                    cmd = ["tmux", "split-window", "-t", f"{session_name}:{window_id}"]
+                    result = subprocess.run(cmd, capture_output=True, text=True)
+                    if result.returncode != 0:
+                        logger.warning(f"Failed to create pane {i+2} in window {window_id}: {result.stderr}")
+                    
+                    # Apply tiled layout every 4 panes to ensure we have space
+                    if (i + 2) % 4 == 0:
+                        cmd = ["tmux", "select-layout", "-t", f"{session_name}:{window_id}", "tiled"]
+                        subprocess.run(cmd, capture_output=True, text=True)
+                
+                # Final tiled layout
+                cmd = ["tmux", "select-layout", "-t", f"{session_name}:{window_id}", "tiled"]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.warning(f"Failed to apply tiled layout to window {window_id}: {result.stderr}")
+                
+                layout_str = self._calculate_layout_for_panes(pane_count)
+                logger.info(f"Created {pane_count} panes in window {window_id} ({layout_str} layout)")
+                return True
             
         except Exception as e:
             logger.error(f"Failed to create panes in window {window_id}: {e}")
@@ -645,12 +778,24 @@ class SpaceManager:
     
     def _get_agent_id_from_pane_mapping(self, mapping: Dict[str, Any]) -> str:
         """Generate agent ID from pane mapping for task assignment lookup"""
+        # Check if agent_id is directly provided in mapping
+        if "agent_id" in mapping:
+            return mapping["agent_id"]
+        
+        # Check if desk_id already contains a well-formed agent ID
+        desk_id = mapping.get("desk_id", "")
+        
+        # If desk_id looks like a proper agent ID (e.g., dev01-dev-r1-d1), use it directly
+        if desk_id and desk_id.startswith("dev") and "-" in desk_id and len(desk_id.split("-")) >= 3:
+            return desk_id
+        
+        # Otherwise, generate agent ID from org/role/room
         org_id = mapping["org_id"]  # "org-01"
         role = mapping["role"]      # "pm", "worker-a", "worker-b", "worker-c", "ceo", "cto", "coo", "assistant"
         room_id = mapping["room_id"]  # "room-01", "room-02", "room-executive"
         
         # Extract organization number
-        org_num = org_id.split("-")[1]  # "01"
+        org_num = org_id.split("-")[1] if "-" in org_id else "01"
         
         # Convert role to agent format
         if role == "pm":
@@ -658,20 +803,41 @@ class SpaceManager:
         elif role in ["ceo", "cto", "coo", "assistant"]:
             # Executive roles keep their original names
             role_part = role
-        else:
+        elif role == "developer":
+            # Simple developer role - default to wk-a
+            role_part = "wk-a"
+        elif "-" in role:
             # "worker-a" → "wk-a"
             worker_suffix = role.split("-")[1]  # "a", "b", "c"
             role_part = f"wk-{worker_suffix}"
-        
-        # Convert room to agent format
-        if room_id == "room-01":
-            room_part = "r1"
-        elif room_id == "room-02":
-            room_part = "r2"
-        elif room_id == "room-executive":
-            room_part = "re"
         else:
-            room_part = "r1"  # Default fallback
+            # Default fallback
+            role_part = "wk-a"
+        
+        # Convert room to agent format dynamically based on room order
+        # Get the window/room index from the actual room configuration
+        if hasattr(self, '_current_space_crd') and self._current_space_crd:
+            # Find room index from CRD
+            room_index = 0
+            company = self._current_space_crd.spec.nations[0].cities[0].villages[0].companies[0]
+            for building in company.buildings:
+                for floor in building.floors:
+                    for idx, room in enumerate(floor.rooms):
+                        if room.id == room_id:
+                            room_index = idx
+                            break
+            # Convert index to room part: 0->r1, 1->r2, etc.
+            room_part = f"r{room_index + 1}"
+        else:
+            # Fallback to pattern matching if no CRD available
+            if room_id == "room-01":
+                room_part = "r1"
+            elif room_id == "room-02":
+                room_part = "r2"
+            elif room_id == "room-executive":
+                room_part = "re"
+            else:
+                room_part = "r1"  # Default fallback
         
         # Generate agent ID: org01-pm-r1, org01-wk-a-r2, org05-ceo-re, etc.
         agent_id = f"org{org_num}-{role_part}-{room_part}"
@@ -724,9 +890,19 @@ class SpaceManager:
                     f.write("- タスク待機中エージェント → このディレクトリ\n\n")
                     f.write("新しいタスクが作成されると、自動的にタスクディレクトリに移動します。\n")
             
-            # Move pane to standby directory
-            absolute_standby_dir = standby_dir.absolute()
-            cmd = ["tmux", "send-keys", "-t", f"{session_name}:{window_id}.{pane_index}", f"cd {absolute_standby_dir}", "Enter"]
+            # Always use absolute path but make it cleaner with ~ if possible
+            absolute_path = str(standby_dir.absolute())
+            home_path = str(Path.home())
+            
+            # Try to use ~ prefix for paths under home directory
+            if absolute_path.startswith(home_path):
+                standby_path = "~" + absolute_path[len(home_path):]
+            else:
+                standby_path = absolute_path
+            
+            # Just change directory, don't start claude automatically
+            cmd = ["tmux", "send-keys", "-t", f"{session_name}:{window_id}.{pane_index}", 
+                   f"cd {standby_path}", "Enter"]
             result1 = subprocess.run(cmd, capture_output=True, text=True)
             
             # Set standby pane title
@@ -737,7 +913,7 @@ class SpaceManager:
             result2 = subprocess.run(cmd, capture_output=True, text=True)
             
             if result1.returncode == 0 and result2.returncode == 0:
-                logger.info(f"📍 Agent {agent_id} placed in standby location: {absolute_standby_dir}")
+                logger.info(f"📍 Agent {agent_id} placed in standby location: {standby_path}")
                 return True
             else:
                 logger.error(f"Failed to place agent {agent_id} in standby location")
@@ -814,12 +990,30 @@ class SpaceManager:
             agent_id = task_info["agent_id"]
             task_name = task_info["task_name"]
             
-            # IMPORTANT: Use absolute path for cd command
-            absolute_task_dir = task_dir.absolute()
+            # Always use absolute path but make it cleaner with ~ if possible
+            absolute_path = str(task_dir.absolute())
+            home_path = str(Path.home())
+            
+            # Try to use ~ prefix for paths under home directory
+            if absolute_path.startswith(home_path):
+                task_path = "~" + absolute_path[len(home_path):]
+            else:
+                task_path = absolute_path
             
             # Update pane working directory to task directory
-            cmd = ["tmux", "send-keys", "-t", f"{session_name}:{window_id}.{pane_index}", 
-                   f"cd {absolute_task_dir}", "Enter"]
+            # Check if claude is already running by checking the pane's current command
+            check_cmd = ["tmux", "display-message", "-t", f"{session_name}:{window_id}.{pane_index}", "-p", "#{pane_current_command}"]
+            check_result = subprocess.run(check_cmd, capture_output=True, text=True)
+            
+            if check_result.returncode == 0 and check_result.stdout.strip() == "node":
+                # Claude is already running, use /cwd command
+                cmd = ["tmux", "send-keys", "-t", f"{session_name}:{window_id}.{pane_index}", 
+                       f"/cwd {task_path}", "Enter"]
+            else:
+                # Claude is not running, cd then start
+                cmd = ["tmux", "send-keys", "-t", f"{session_name}:{window_id}.{pane_index}", 
+                       f"cd {task_path} && claude", "Enter"]
+            
             result1 = subprocess.run(cmd, capture_output=True, text=True)
             
             # Update pane title to include task info
@@ -829,7 +1023,7 @@ class SpaceManager:
             result2 = subprocess.run(cmd, capture_output=True, text=True)
             
             if result1.returncode == 0 and result2.returncode == 0:
-                logger.info(f"✅ Moved agent {agent_id} to task directory: {absolute_task_dir}")
+                logger.info(f"✅ Moved agent {agent_id} to task directory: {task_path}")
                 logger.info(f"   📍 Pane: {window_id}.{pane_index}")
                 logger.info(f"   📝 Task: {task_name}")
                 
@@ -908,10 +1102,23 @@ class SpaceManager:
     
     def _get_window_id_for_room(self, room_id: str) -> str:
         """Get window ID for specific room"""
-        # room-01 → window 0, room-02 → window 1, room-executive → window 2
-        if room_id == "room-01":
+        # Map room IDs to window IDs based on their order in the active session
+        if hasattr(self, 'active_sessions') and self.active_sessions:
+            # Get the first active session
+            session_data = next(iter(self.active_sessions.values()), {})
+            desk_distribution = session_data.get('desk_distribution', {})
+            
+            # Get ordered list of room IDs
+            room_ids = list(desk_distribution.keys())
+            
+            # Find the index of this room_id
+            if room_id in room_ids:
+                return str(room_ids.index(room_id))
+        
+        # Fallback: Handle specific room names
+        if room_id == "room-01" or room_id == "room-frontend":
             return "0"
-        elif room_id == "room-02":
+        elif room_id == "room-02" or room_id == "room-backend":
             return "1"
         elif room_id == "room-executive":
             return "2"
@@ -925,26 +1132,72 @@ class SpaceManager:
     
     def _calculate_panes_per_window(self, grid: str, room_count: int) -> Dict[str, Any]:
         """Calculate panes per window based on grid and room count"""
-        if grid == "8x4" and room_count == 3:
-            # 3 rooms: Alpha (8 panes), Beta (8 panes), Executive (4 panes)
+        # Parse grid to get total panes
+        try:
+            cols, rows = map(int, grid.split('x'))
+            total_panes = cols * rows
+        except:
+            total_panes = 16  # Default fallback
+            cols, rows = 4, 4
+        
+        # For single room, all panes go to that room
+        if room_count == 1:
             return {
-                "total_panes": 20,
+                "total_panes": total_panes,
+                "panes_per_window": total_panes,
+                "layout_per_window": f"{cols}x{rows}"
+            }
+        
+        # For multiple rooms, distribute panes evenly
+        panes_per_room = total_panes // room_count
+        remainder = total_panes % room_count
+        
+        # Special handling for known configurations
+        if grid == "8x4" and room_count == 3:
+            # Special case: 32 panes, 3 rooms -> 8, 8, 4 for executive
+            return {
+                "total_panes": 20,  # Reduced total for executive room
                 "panes_per_window": {"room-01": 8, "room-02": 8, "room-executive": 4},
                 "layout_per_window": {"room-01": "2x4", "room-02": "2x4", "room-executive": "1x4"}
             }
-        elif grid == "8x4" and room_count == 2:
-            return {
-                "total_panes": 32,
-                "panes_per_window": 16,
-                "layout_per_window": "4x4"
-            }
+        
+        # Generic distribution
+        return {
+            "total_panes": total_panes,
+            "panes_per_window": panes_per_room,
+            "layout_per_window": self._calculate_layout_for_panes(panes_per_room)
+        }
+    
+    def _calculate_layout_for_panes(self, pane_count: int) -> str:
+        """Calculate optimal layout string for given pane count"""
+        if pane_count == 1:
+            return "1x1"
+        elif pane_count == 2:
+            return "2x1"
+        elif pane_count == 3:
+            return "3x1"
+        elif pane_count == 4:
+            return "2x2"
+        elif pane_count <= 6:
+            return "3x2"
+        elif pane_count <= 8:
+            return "4x2"
+        elif pane_count <= 9:
+            return "3x3"
+        elif pane_count <= 12:
+            return "4x3"
+        elif pane_count <= 16:
+            return "4x4"
+        elif pane_count <= 20:
+            return "5x4"
+        elif pane_count <= 25:
+            return "5x5"
         else:
-            # Default fallback
-            return {
-                "total_panes": 16,
-                "panes_per_window": 16,
-                "layout_per_window": "4x4"
-            }
+            # For larger counts, try to keep it roughly square
+            import math
+            cols = int(math.ceil(math.sqrt(pane_count)))
+            rows = int(math.ceil(pane_count / cols))
+            return f"{cols}x{rows}"
     
     def create_room_layout(self, session_name: str, room_config: Dict[str, Any]) -> bool:
         """Create layout for specific room"""
@@ -1145,6 +1398,35 @@ class SpaceManager:
                 session_name in self.active_sessions or
                 any(keyword in session_name.lower() for keyword in ['test', 'multiroom', 'enterprise']))
     
+    def _send_claude_command_to_all_panes(self, session_name: str, rooms: List[Dict[str, Any]], desk_distribution: Dict[str, List[Dict[str, Any]]]) -> None:
+        """Send claude command to all panes after creation"""
+        try:
+            logger.info("🤖 Sending claude command to all panes...")
+            
+            # Send command to each room's panes
+            for room_idx, room in enumerate(rooms):
+                room_id = room["id"]
+                window_id = str(room_idx)
+                
+                # Get desks for this room
+                desks_in_room = desk_distribution.get(room_id, [])
+                
+                for pane_index, desk_mapping in enumerate(desks_in_room):
+                    # Send claude command to this pane
+                    cmd = ["tmux", "send-keys", "-t", f"{session_name}:{window_id}.{pane_index}", 
+                           "claude", "Enter"]
+                    result = subprocess.run(cmd, capture_output=True, text=True)
+                    
+                    if result.returncode == 0:
+                        logger.debug(f"✅ Sent claude command to pane {window_id}.{pane_index}")
+                    else:
+                        logger.warning(f"Failed to send claude command to pane {window_id}.{pane_index}: {result.stderr}")
+            
+            logger.info("✅ Claude command sent to all panes")
+            
+        except Exception as e:
+            logger.error(f"Failed to send claude commands: {e}")
+    
     def start_company(self, company_name: str) -> bool:
         """Start company session"""
         # This is a placeholder - would integrate with existing company logic
@@ -1156,17 +1438,38 @@ class SpaceManager:
         return True
 
     def _configure_pane_borders(self, session_name: str):
-        """Configure pane borders and titles (same as company build)"""
+        """Configure pane borders and titles for all windows"""
         try:
-            # Configure pane borders and titles
+            # Configure pane borders and titles at session level
             cmd1 = ["tmux", "set-option", "-t", session_name, "pane-border-status", "top"]
             result1 = subprocess.run(cmd1, capture_output=True, text=True)
             
             cmd2 = ["tmux", "set-option", "-t", session_name, "pane-border-format", "#{pane_title}"]
             result2 = subprocess.run(cmd2, capture_output=True, text=True)
             
+            # Also set for each window to ensure it's applied
+            windows_result = subprocess.run(
+                ["tmux", "list-windows", "-t", session_name, "-F", "#{window_index}"],
+                capture_output=True, text=True
+            )
+            
+            if windows_result.returncode == 0:
+                for window_id in windows_result.stdout.strip().split('\n'):
+                    if window_id:
+                        # Set pane border options for each window
+                        subprocess.run(
+                            ["tmux", "set-option", "-t", f"{session_name}:{window_id}", 
+                             "pane-border-status", "top"],
+                            capture_output=True, text=True
+                        )
+                        subprocess.run(
+                            ["tmux", "set-option", "-t", f"{session_name}:{window_id}", 
+                             "pane-border-format", "#{pane_title}"],
+                            capture_output=True, text=True
+                        )
+            
             if result1.returncode == 0 and result2.returncode == 0:
-                logger.info(f"Configured pane borders for session: {session_name}")
+                logger.info(f"Configured pane borders for session and all windows: {session_name}")
             else:
                 logger.warning(f"Failed to configure pane borders: {result1.stderr} {result2.stderr}")
         
@@ -1262,33 +1565,58 @@ class SpaceManager:
         try:
             updated_count = 0
             
-            if session_name not in self.active_sessions:
-                logger.warning(f"Session {session_name} not found in active sessions")
-                return 0
-            
-            session_info = self.active_sessions[session_name]
-            desk_mappings = session_info.get("desk_mappings", [])
-            desk_distribution = session_info.get("desk_distribution", {})
+            # Get base path from space_ref
+            base_path = Path(f"./{space_ref.replace('-company', '-world')}")
+            if not base_path.exists():
+                # Try alternative paths
+                base_path = Path(f"./{space_ref}")
+                if not base_path.exists():
+                    base_path = Path(f"./test-world-multiroom-tasks")
+                    if not base_path.exists():
+                        logger.warning(f"Cannot find base path for space: {space_ref}")
+                        return 0
             
             logger.info(f"🔄 Re-checking task logs for all panes in session: {session_name}")
+            logger.info(f"📁 Using base path: {base_path}")
             
-            # Process each room
-            for room_id, desks_in_room in desk_distribution.items():
-                window_id = self._get_window_id_for_room(room_id)
-                
-                # Process each pane in the room
-                for pane_index, mapping in enumerate(desks_in_room):
-                    # Get base path from session info
-                    base_path = Path(session_info.get("config", {}).get("base_path", "./"))
+            # Get all windows in the session
+            cmd = ["tmux", "list-windows", "-t", session_name, "-F", "#{window_index}:#{window_name}"]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                logger.error(f"Failed to list windows: {result.stderr}")
+                return 0
+            
+            # Process each window
+            for line in result.stdout.strip().split('\n'):
+                if not line:
+                    continue
                     
-                    # Check for task assignment and update if found
-                    success = self._update_pane_from_task_logs(session_name, window_id, pane_index, mapping, base_path)
-                    if success:
-                        # Check if agent was actually moved to task directory
-                        agent_id = self._get_agent_id_from_pane_mapping(mapping)
-                        if self._check_if_pane_moved_to_task(session_name, window_id, pane_index):
-                            updated_count += 1
-                            logger.debug(f"Agent {agent_id} successfully updated to task directory")
+                window_id, window_name = line.split(':', 1)
+                
+                # Get all panes in this window
+                cmd = ["tmux", "list-panes", "-t", f"{session_name}:{window_id}", "-F", "#{pane_index}"]
+                pane_result = subprocess.run(cmd, capture_output=True, text=True)
+                
+                if pane_result.returncode == 0:
+                    for pane_line in pane_result.stdout.strip().split('\n'):
+                        if not pane_line:
+                            continue
+                            
+                        pane_index = int(pane_line)
+                        
+                        # Create a minimal mapping for agent ID generation
+                        # We'll reconstruct it from the window/pane position
+                        mapping = self._reconstruct_mapping_from_position(window_id, pane_index)
+                        
+                        # Check for task assignment and update if found
+                        success = self._update_pane_from_task_logs(session_name, window_id, pane_index, mapping, base_path)
+                        if success:
+                            # Check if agent was actually moved to task directory
+                            if self._check_if_pane_moved_to_task(session_name, window_id, pane_index):
+                                updated_count += 1
+                                agent_id = self._get_agent_id_from_pane_mapping(mapping)
+                                logger.debug(f"Agent {agent_id} successfully updated to task directory")
             
             logger.info(f"🎯 Updated {updated_count} agent panes based on task logs")
             return updated_count
@@ -1296,6 +1624,27 @@ class SpaceManager:
         except Exception as e:
             logger.error(f"Failed to update panes from task logs: {e}")
             return 0
+    
+    def _reconstruct_mapping_from_position(self, window_id: str, pane_index: int) -> Dict[str, Any]:
+        """Reconstruct agent mapping from window/pane position"""
+        # Window 0 = Frontend room (r1), Window 1 = Backend room (r2)
+        room_id = "room-frontend" if window_id == "0" else "room-backend"
+        
+        # Calculate organization and role from pane index
+        # Each org has 4 agents (pm, worker-a, worker-b, worker-c)
+        org_idx = pane_index // 4
+        role_idx = pane_index % 4
+        
+        org_id = f"org-{org_idx + 1:02d}"
+        roles = ["pm", "worker-a", "worker-b", "worker-c"]
+        role = roles[role_idx]
+        
+        return {
+            "org_id": org_id,
+            "role": role,
+            "room_id": room_id,
+            "desk_id": f"desk-{room_id}-{org_idx + 1:02d}-{role_idx:02d}"
+        }
     
     def _check_if_pane_moved_to_task(self, session_name: str, window_id: str, pane_index: int) -> bool:
         """Check if pane was successfully moved to task directory"""
@@ -1340,7 +1689,7 @@ class SpaceManager:
         except Exception as e:
             logger.warning(f"Error during session cleanup: {e}")
     
-    def _display_created_structure(self, base_path: Path, organizations: List[Dict[str, Any]]) -> None:
+    def _display_created_structure(self, base_path: Path, organizations: List[Dict[str, Any]], total_panes: int = 32, room_count: int = 2) -> None:
         """Display comprehensive world structure including hierarchy, tasks, and directory mapping"""
         from rich.console import Console
         from rich.tree import Tree
@@ -1357,7 +1706,7 @@ class SpaceManager:
         world_tree = self._create_world_hierarchy_tree(base_path, organizations, task_assignments)
         
         # Create directory structure tree
-        directory_tree = self._create_directory_structure_tree(base_path, organizations)
+        directory_tree = self._create_directory_structure_tree(base_path, organizations, total_panes, room_count)
         
         # Create task assignment table
         task_table = self._create_task_assignment_table(task_assignments)
@@ -1395,119 +1744,154 @@ class SpaceManager:
         
         tree = Tree(f"🌍 [bold cyan]World: {base_path.name}[/bold cyan]")
         
-        # Nation level
-        nation_branch = tree.add("🏴 [blue]Nation: Japan[/blue]")
+        # Get actual space configuration from active session
+        session_config = None
+        company_name = "Unknown Company"
+        for session_name, session_info in self.active_sessions.items():
+            if Path(session_info.get("base_path", "")) == base_path:
+                session_config = session_info.get("config", {})
+                company_name = session_config.get("name", "Unknown Company")
+                break
         
-        # City level  
-        city_branch = nation_branch.add("🏙️ [blue]City: Tokyo[/blue]")
+        # Get actual CRD data if available
+        space_crd = None
+        if hasattr(self, '_current_space_crd'):
+            space_crd = self._current_space_crd
         
-        # Village level
-        village_branch = city_branch.add("🏘️ [blue]Village: Harmony Village[/blue]")
-        
-        # Company level
-        company_branch = village_branch.add("🏢 [green]Company: Synergy Development[/green]")
-        
-        # Building level
-        building_branch = company_branch.add("🏢 [yellow]Building: Headquarters[/yellow]")
-        
-        # Floor 1 - Engineering Floor
-        floor1_branch = building_branch.add("🏠 [yellow]Floor 1 - Engineering Floor[/yellow]")
-        
-        # Room level on Floor 1
-        alpha_room = floor1_branch.add("🚪 [cyan]Alpha Room (room-01)[/cyan]")
-        beta_room = floor1_branch.add("🚪 [cyan]Beta Room (room-02)[/cyan]")
-        
-        # Floor 2 - Executive Floor
-        floor2_branch = building_branch.add("🏠 [gold1]Floor 2 - Executive Floor[/gold1]")
-        
-        # Executive Room on Floor 2
-        executive_room = floor2_branch.add("🚪 [gold1]Executive Room (room-executive)[/gold1]")
+        # Build hierarchy from CRD or use minimal defaults
+        if space_crd and hasattr(space_crd.spec, 'nations') and space_crd.spec.nations:
+            nation = space_crd.spec.nations[0]
+            nation_branch = tree.add(f"🏴 [blue]Nation: {nation.name}[/blue]")
+            
+            if nation.cities:
+                city = nation.cities[0]
+                city_branch = nation_branch.add(f"🏙️ [blue]City: {city.name}[/blue]")
+                
+                if city.villages:
+                    village = city.villages[0]
+                    village_branch = city_branch.add(f"🏘️ [blue]Village: {village.name}[/blue]")
+                    
+                    if village.companies:
+                        company = village.companies[0]
+                        company_branch = village_branch.add(f"🏢 [green]Company: {company.name}[/green]")
+                        
+                        if company.buildings:
+                            building = company.buildings[0]
+                            building_branch = company_branch.add(f"🏢 [yellow]Building: {building.name}[/yellow]")
+                            
+                            # Process floors and rooms from CRD
+                            room_branches = {}
+                            for floor in building.floors:
+                                floor_branch = building_branch.add(f"🏠 [yellow]{floor.name}[/yellow]")
+                                
+                                for room in floor.rooms:
+                                    room_branch = floor_branch.add(f"🚪 [cyan]{room.name} ({room.id})[/cyan]")
+                                    room_branches[room.id] = room_branch
+                        else:
+                            # No buildings defined - minimal structure
+                            room_branches = {
+                                "room-01": company_branch.add("🚪 [cyan]Room 1[/cyan]")
+                            }
+                    else:
+                        # No companies - minimal structure
+                        room_branches = {
+                            "room-01": village_branch.add("🚪 [cyan]Room 1[/cyan]")
+                        }
+                else:
+                    # No villages - minimal structure
+                    room_branches = {
+                        "room-01": city_branch.add("🚪 [cyan]Room 1[/cyan]")
+                    }
+            else:
+                # No cities - minimal structure
+                room_branches = {
+                    "room-01": nation_branch.add("🚪 [cyan]Room 1[/cyan]")
+                }
+        else:
+            # No CRD data - use session configuration or minimal defaults
+            nation_branch = tree.add("🏴 [blue]Nation: Default[/blue]")
+            city_branch = nation_branch.add("🏙️ [blue]City: Default[/blue]")
+            village_branch = city_branch.add("🏘️ [blue]Village: Default[/blue]")
+            company_branch = village_branch.add(f"🏢 [green]Company: {company_name}[/green]")
+            
+            # Get rooms from session config
+            rooms = session_config.get("rooms", [{"id": "room-01", "name": "Room 1"}]) if session_config else [{"id": "room-01", "name": "Room 1"}]
+            room_branches = {}
+            for room in rooms:
+                room_id = room.get("id", "room-01")
+                room_name = room.get("name", "Room")
+                room_branch = company_branch.add(f"🚪 [cyan]{room_name} ({room_id})[/cyan]")
+                room_branches[room_id] = room_branch
         
         # Get organization data from Organization CRD for detailed role mapping
         organization_crd_data = self._get_organization_crd_for_display()
         
-        # Add organizations and desks to each room with actual role information
-        for i, org in enumerate(organizations[:4]):  # First 4 organizations for Alpha/Beta
-            org_id = i + 1
-            org_name = org.get("name", f"Organization {org_id}")
-            department_id = org.get("department_id", "unknown")
-            
-            # Get actual roles for this department from Organization CRD
-            dept_roles = self._get_department_roles(organization_crd_data, department_id)
-            
-            # Only show first 2 orgs in Alpha, next 2 orgs in Beta
-            if i < 2:  # Organizations 1-2 in Alpha Room
-                alpha_org = alpha_room.add(f"📋 [magenta]{org_name}[/magenta]")
-                for j in range(4):  # 4 panes per organization per room
-                    if j == 0:
-                        role_part = "pm"
-                        role_title = dept_roles.get("lead", "Team Lead") if dept_roles else "PM"
-                    else:
-                        role_part = f"wk-{chr(ord('a')+j-1)}"
-                        role_titles = dept_roles.get("workers", ["Senior Dev", "Dev", "Junior Dev"]) if dept_roles else ["Senior Dev", "Dev", "Junior Dev"]
-                        role_title = role_titles[j-1] if j-1 < len(role_titles) else f"Worker {chr(ord('A')+j-1)}"
-                        
-                    desk_id = f"org{org_id:02d}-{role_part}-r1"
-                    task_info = task_assignments.get(desk_id, {})
-                    task_display = f" → [green]{task_info['task_name']}[/green]" if task_info else " [dim](standby)[/dim]"
-                    alpha_org.add(f"👤 [white]{role_title}[/white] ({desk_id}){task_display}")
-                    
-            else:  # Organizations 3-4 in Beta Room
-                beta_org = beta_room.add(f"📋 [magenta]{org_name}[/magenta]")
-                for j in range(4):  # 4 panes per organization per room
-                    if j == 0:
-                        role_part = "pm"
-                        role_title = dept_roles.get("lead", "Team Lead") if dept_roles else "PM"
-                    else:
-                        role_part = f"wk-{chr(ord('a')+j-1)}"
-                        role_titles = dept_roles.get("workers", ["Senior Dev", "Dev", "Junior Dev"]) if dept_roles else ["Senior Dev", "Dev", "Junior Dev"]
-                        role_title = role_titles[j-1] if j-1 < len(role_titles) else f"Worker {chr(ord('A')+j-1)}"
-                        
-                    desk_id = f"org{org_id:02d}-{role_part}-r2"
-                    task_info = task_assignments.get(desk_id, {})
-                    task_display = f" → [green]{task_info['task_name']}[/green]" if task_info else " [dim](standby)[/dim]"
-                    beta_org.add(f"👤 [white]{role_title}[/white] ({desk_id}){task_display}")
+        # Add organizations and desks to rooms based on actual structure
+        # Get organization data from Organization CRD for detailed role mapping
+        organization_crd_data = self._get_organization_crd_for_display()
         
-        # Executive Room - Organization 5 on Floor 2
-        if len(organizations) >= 5:
-            exec_org = organizations[4]  # 5th organization (Executive)
-            exec_org_name = exec_org.get("name", "Executive Leadership")
-            
-            # Get executive roles from Organization CRD
-            exec_dept_roles = self._get_department_roles(organization_crd_data, "executive")
-            
-            exec_branch = executive_room.add(f"📋 [gold1]{exec_org_name}[/gold1]")
-            
-            # CEO, CTO, COO, Assistant
-            exec_roles = ["ceo", "cto", "coo", "assistant"]
-            exec_titles = ["CEO", "CTO", "COO", "Executive Assistant"]
-            
-            # Use actual titles from Organization CRD if available
-            if exec_dept_roles:
-                actual_exec_titles = []
-                for role in exec_dept_roles.get("workers", []):
-                    if "ceo" in role.lower():
-                        actual_exec_titles.append(role)
-                    elif "cto" in role.lower():
-                        actual_exec_titles.append(role)
-                    elif "coo" in role.lower():
-                        actual_exec_titles.append(role)
-                
-                # Add missing titles
-                if len(actual_exec_titles) < 3:
-                    actual_exec_titles.extend(["CEO", "CTO", "COO"][len(actual_exec_titles):])
-                actual_exec_titles.append("Executive Assistant")
-                exec_titles = actual_exec_titles[:4]
-            
-            for i, (role_name, role_title) in enumerate(zip(exec_roles, exec_titles)):
-                desk_id = f"org05-{role_name}-re"
-                task_info = task_assignments.get(desk_id, {})
-                task_display = f" → [green]{task_info['task_name']}[/green]" if task_info else " [dim](standby)[/dim]"
-                exec_branch.add(f"👤 [white]{role_title}[/white] ({desk_id}){task_display}")
+        # Process organizations based on actual room structure
+        for room_id, room_branch in room_branches.items():
+            # Get desk mappings for this room from session info
+            if hasattr(self, 'active_sessions'):
+                for session_info in self.active_sessions.values():
+                    desk_distribution = session_info.get("desk_distribution", {})
+                    desks_in_room = desk_distribution.get(room_id, [])
+                    
+                    # Group desks by organization
+                    org_groups = {}
+                    for desk in desks_in_room:
+                        org_id = desk.get("org_id", "org-01")
+                        if org_id not in org_groups:
+                            org_groups[org_id] = []
+                        org_groups[org_id].append(desk)
+                    
+                    # Add organizations to room
+                    for org_id, org_desks in org_groups.items():
+                        # Find organization info
+                        org_num = int(org_id.split("-")[1]) if "-" in org_id else 1
+                        org_info = organizations[org_num - 1] if org_num <= len(organizations) else {}
+                        org_name = org_info.get("name", f"Organization {org_num}")
+                        department_id = org_info.get("department_id", "unknown")
+                        
+                        # Get department roles
+                        dept_roles = self._get_department_roles(organization_crd_data, department_id)
+                        
+                        # Add organization branch
+                        if "executive" in room_id:
+                            org_branch = room_branch.add(f"📋 [gold1]{org_name}[/gold1]")
+                        else:
+                            org_branch = room_branch.add(f"📋 [magenta]{org_name}[/magenta]")
+                        
+                        # Add desks (agents) to organization
+                        for desk in org_desks:
+                            role = desk.get("role", "worker")
+                            desk_id = desk.get("desk_id", "unknown")
+                            
+                            # Determine role title based on role type and department
+                            if role in ["ceo", "cto", "coo", "assistant"]:
+                                # Executive roles
+                                role_title = role.upper() if role != "assistant" else "Executive Assistant"
+                            elif role == "pm":
+                                role_title = dept_roles.get("lead", "Team Lead") if dept_roles else "Project Manager"
+                            else:
+                                # Worker roles
+                                worker_idx = ord(role.split("-")[1]) - ord('a') if "-" in role else 0
+                                role_titles = dept_roles.get("workers", ["Senior Developer", "Developer", "Junior Developer"]) if dept_roles else ["Senior Developer", "Developer", "Junior Developer"]
+                                role_title = role_titles[worker_idx] if worker_idx < len(role_titles) else f"Worker {chr(ord('A')+worker_idx)}"
+                            
+                            # Generate agent ID for task lookup
+                            agent_id = self._get_agent_id_from_pane_mapping(desk)
+                            task_info = task_assignments.get(agent_id, {})
+                            task_display = f" → [green]{task_info['task_name']}[/green]" if task_info else " [dim](standby)[/dim]"
+                            
+                            org_branch.add(f"👤 [white]{role_title}[/white] ({agent_id}){task_display}")
+                    
+                    break  # Use first matching session
         
         return tree
     
-    def _create_directory_structure_tree(self, base_path: Path, organizations: List[Dict[str, Any]]):
+    def _create_directory_structure_tree(self, base_path: Path, organizations: List[Dict[str, Any]], total_panes: int = 32, room_count: int = 2):
         """Create directory structure tree"""
         from rich.tree import Tree
         
@@ -1547,10 +1931,12 @@ class SpaceManager:
         standby_branch = tree.add("📁 [dim]standby/[/dim] (Unassigned Agents)")
         
         # Add summary info
+        panes_per_room = total_panes // room_count if room_count > 1 else total_panes
+        pane_info = f"Tmux Panes: {total_panes} ({panes_per_room} per room)" if room_count > 1 else f"Tmux Panes: {total_panes}"
         if task_count > 0:
-            tree.add(f"[dim]📊 Active Tasks: {task_count} | Tmux Panes: 32 (16 per room)[/dim]")
+            tree.add(f"[dim]📊 Active Tasks: {task_count} | {pane_info}[/dim]")
         else:
-            tree.add(f"[dim]📊 No active tasks | Tmux Panes: 32 (16 per room)[/dim]")
+            tree.add(f"[dim]📊 No active tasks | {pane_info}[/dim]")
         
         return tree
     
@@ -1570,8 +1956,47 @@ class SpaceManager:
         
         # Get organization data from Organization CRD for role information
         organization_crd_data = self._get_organization_crd_for_display()
-        organizations = self._get_organization_data("synergy-development-org")
         
+        # Get organization and room data from current session
+        organization_ref = None
+        rooms = []
+        desk_mappings = []
+        for session_info in self.active_sessions.values():
+            config = session_info.get("config", {})
+            organizations = config.get("organizations", [])
+            rooms = config.get("rooms", [])
+            desk_mappings = session_info.get("desk_mappings", [])
+            if organizations:
+                # Get organization reference from the first active session
+                break
+        
+        if not organizations:
+            # Fallback to default organizations
+            organizations = self._get_organization_data(None)
+        
+        # If we have desk mappings, use them to display correct agent IDs
+        if desk_mappings:
+            for mapping in desk_mappings:
+                # Get agent ID from desk mapping
+                agent_id = self._get_agent_id_from_pane_mapping(mapping)
+                room_name = mapping.get("title", "").split(" - ")[-1] if " - " in mapping.get("title", "") else "Unknown Room"
+                role_name = mapping.get("title", "").split(" - ")[1] if len(mapping.get("title", "").split(" - ")) > 2 else "Developer"
+                
+                # Check for task assignment
+                assigned_task = ""
+                for task_agent_id, task_info in task_assignments.items():
+                    if task_agent_id == agent_id:
+                        assigned_task = task_info.get("task_name", "Unknown Task")
+                        break
+                
+                if not assigned_task:
+                    assigned_task = "[dim]standby[/dim]"
+                
+                table.add_row(assigned_task, room_name, role_name, agent_id)
+            
+            return table
+        
+        # Fallback to old logic if no desk mappings
         # Add assignments for first 4 organizations (Alpha and Beta rooms)
         for i, org in enumerate(organizations[:4]):
             org_id = i + 1
@@ -1581,9 +2006,15 @@ class SpaceManager:
             # Get actual roles for this department from Organization CRD
             dept_roles = self._get_department_roles(organization_crd_data, department_id)
             
-            # Room assignment based on organization ID
-            room_name = "Alpha Room" if i < 2 else "Beta Room"
-            room_id = "room-01" if i < 2 else "room-02"
+            # Room assignment based on organization ID and actual room configuration
+            if rooms and i < len(rooms):
+                room = rooms[i % len(rooms)]  # Cycle through available rooms
+                room_id = room.get("id", f"room-{i+1:02d}")
+                room_name = room.get("name", f"Room {i+1}")
+            else:
+                # Fallback if no room configuration
+                room_name = "Alpha Room" if i < 2 else "Beta Room"
+                room_id = "room-01" if i < 2 else "room-02"
             
             for j in range(4):  # 4 roles per organization
                 if j == 0:
@@ -1657,7 +2088,13 @@ class SpaceManager:
                 if not assigned_task:
                     assigned_task = "[dim]standby[/dim]"
                 
-                table.add_row(assigned_task, "Executive Room", role_title, agent_id)
+                # Use actual room name if available
+                exec_room_name = "Executive Room"
+                if rooms and len(rooms) > 2:
+                    exec_room = rooms[2]  # Third room for executives
+                    exec_room_name = exec_room.get("name", "Executive Room")
+                
+                table.add_row(assigned_task, exec_room_name, role_title, agent_id)
         
         return table
     
@@ -1712,6 +2149,89 @@ class SpaceManager:
         
         return assignments
     
+    def update_panes_for_task_assignments(self, session_name: str, base_path: Path) -> int:
+        """Update panes immediately after task assignments"""
+        updated_count = 0
+        
+        try:
+            # Get all task assignments
+            task_dirs = list(base_path.glob("tasks/*"))
+            
+            for task_dir in task_dirs:
+                if task_dir.name == "main" or not task_dir.is_dir():
+                    continue
+                
+                # Check for assignment log
+                assignment_log = task_dir / ".haconiwa" / "agent_assignment.json"
+                if not assignment_log.exists():
+                    continue
+                
+                try:
+                    with open(assignment_log, 'r') as f:
+                        assignments = json.load(f)
+                    
+                    for assignment in assignments:
+                        if assignment.get("status") != "active":
+                            continue
+                        
+                        agent_id = assignment.get("agent_id")
+                        if not agent_id:
+                            continue
+                        
+                        # Find the pane with this agent ID
+                        pane_found = False
+                        
+                        # Try to load desk mappings from state file if not in memory
+                        desk_mappings = None
+                        if hasattr(self, '_current_desk_mappings'):
+                            desk_mappings = self._current_desk_mappings
+                        else:
+                            # Try to load from saved state
+                            desk_mappings_file = base_path / ".haconiwa" / "desk_mappings.json"
+                            if desk_mappings_file.exists():
+                                try:
+                                    with open(desk_mappings_file, 'r') as f:
+                                        desk_mappings = json.load(f)
+                                except Exception as e:
+                                    logger.warning(f"Could not load desk mappings: {e}")
+                        
+                        if desk_mappings:
+                            for idx, mapping in enumerate(desk_mappings):
+                                if mapping.get('agent_id') == agent_id:
+                                    # Calculate window and pane from index
+                                    window_id = "0"  # For single room
+                                    pane_index = idx
+                                    
+                                    # Move to task directory and start claude
+                                    task_path = task_dir.absolute()
+                                    home_path = str(Path.home())
+                                    
+                                    if str(task_path).startswith(home_path):
+                                        task_path_str = "~" + str(task_path)[len(home_path):]
+                                    else:
+                                        task_path_str = str(task_path)
+                                    
+                                    cmd = ["tmux", "send-keys", "-t", f"{session_name}:{window_id}.{pane_index}", 
+                                           f"cd {task_path_str} && claude", "Enter"]
+                                    result = subprocess.run(cmd, capture_output=True, text=True)
+                                    
+                                    if result.returncode == 0:
+                                        logger.info(f"✅ Moved agent {agent_id} to task directory: {task_path_str}")
+                                        updated_count += 1
+                                        pane_found = True
+                                        break
+                        
+                        if not pane_found:
+                            logger.warning(f"Could not find pane for agent {agent_id}")
+                
+                except Exception as e:
+                    logger.error(f"Error processing assignment log {assignment_log}: {e}")
+        
+        except Exception as e:
+            logger.error(f"Error updating panes for task assignments: {e}")
+        
+        return updated_count
+    
     def _get_organization_crd_for_display(self) -> Optional[Dict[str, Any]]:
         """Get Organization CRD data for display purposes"""
         try:
@@ -1758,17 +2278,26 @@ class SpaceManager:
                             'lead' in title.lower() or 
                             'manager' in title.lower() or
                             'head' in title.lower()):
-                            lead_role = title
+                            lead_role = role  # Store role object
                         else:
-                            worker_roles.append(title)
+                            worker_roles.append(role)  # Store role object
                     
                     # Ensure we have at least 3 worker roles for 32-pane structure
                     while len(worker_roles) < 3:
-                        worker_roles.append(f"Worker {len(worker_roles) + 1}")
+                        # Create dummy role objects
+                        from ..core.crd.models import RoleConfig
+                        dummy_role = RoleConfig(
+                            roleType="engineering",
+                            title=f"Worker {len(worker_roles) + 1}",
+                            responsibilities=[]
+                        )
+                        worker_roles.append(dummy_role)
                     
                     return {
                         "lead": lead_role or "Team Lead",
-                        "workers": worker_roles[:3]  # Take first 3 for consistency
+                        "workers": worker_roles[:3],  # Take first 3 for consistency
+                        "lead_role": lead_role,  # Add role objects
+                        "worker_roles": worker_roles[:3]
                     }
             
             return None

@@ -246,7 +246,19 @@ class CRDApplier:
                 
                 logger.info(f"🔄 Running log-based pane update for space: {space_ref}")
                 
-                # Use SpaceManager's new log-based update method
+                # First try the new direct assignment method
+                base_path = Path(f"./{space_ref.replace('-company', '-world')}")
+                if not base_path.exists():
+                    base_path = Path(f"./{space_ref}")
+                
+                if base_path.exists():
+                    updated_count = space_manager.update_panes_for_task_assignments(session_name, base_path)
+                    if updated_count > 0:
+                        total_updated += updated_count
+                        logger.info(f"✅ Updated {updated_count} agent panes directly for space: {space_ref}")
+                        continue
+                
+                # Fall back to log-based update method
                 updated_count = space_manager.update_all_panes_from_task_logs(session_name, space_ref)
                 total_updated += updated_count
                 

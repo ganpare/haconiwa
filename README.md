@@ -31,16 +31,19 @@ Declarative YAML file-based multiroom multi-agent environment management is avai
 pip install haconiwa --upgrade
 
 # 2. Download YAML file (directly from GitHub)
-wget https://raw.githubusercontent.com/dai-motoki/haconiwa/main/haconiwa-multiroom-test.yaml
+wget https://raw.githubusercontent.com/dai-motoki/haconiwa/main/test-multiroom-with-tasks.yaml
 
 # Or download with curl
-curl -O https://raw.githubusercontent.com/dai-motoki/haconiwa/main/haconiwa-multiroom-test.yaml
+curl -O https://raw.githubusercontent.com/dai-motoki/haconiwa/main/test-multiroom-with-tasks.yaml
 
 # Check file contents
-cat haconiwa-multiroom-test.yaml
+cat test-multiroom-with-tasks.yaml
 
-# 3. Apply YAML to create multiroom environment
-haconiwa apply -f haconiwa-multiroom-test.yaml
+# 3. Apply YAML to create multiroom environment (auto-attach by default)
+haconiwa apply -f test-multiroom-with-tasks.yaml
+
+# 3b. Apply without auto-attach
+haconiwa apply -f test-multiroom-with-tasks.yaml --no-attach
 
 # 4. List spaces
 haconiwa space list
@@ -48,26 +51,26 @@ haconiwa space list
 # 5. List spaces (short form)
 haconiwa space ls
 
-# 6. Attach to specific room
-haconiwa space attach -c test-multiroom-company -r room-01
+# 6. Attach to specific room (if not auto-attached)
+haconiwa space attach -c test-company-multiroom-tasks -r room-frontend
 
 # 7. Execute claude command on all panes
-haconiwa space run -c test-multiroom-company --claude-code
+haconiwa space run -c test-company-multiroom-tasks --claude-code
 
 # 8. Execute custom command on specific room
-haconiwa space run -c test-multiroom-company --cmd "echo hello" -r room-01
+haconiwa space run -c test-company-multiroom-tasks --cmd "echo hello" -r room-backend
 
 # 9. Dry-run to check commands
-haconiwa space run -c test-multiroom-company --claude-code --dry-run
+haconiwa space run -c test-company-multiroom-tasks --claude-code --dry-run
 
 # 10. Stop session
-haconiwa space stop -c test-multiroom-company
+haconiwa space stop -c test-company-multiroom-tasks
 
 # 11. Complete deletion (delete directories too)
-haconiwa space delete -c test-multiroom-company --clean-dirs --force
+haconiwa space delete -c test-company-multiroom-tasks --clean-dirs --force
 
 # 12. Complete deletion (keep directories)
-haconiwa space delete -c test-multiroom-company --force
+haconiwa space delete -c test-company-multiroom-tasks --force
 ```
 
 **📁 Auto-created Multiroom Structure (Hierarchical Legal Framework):**
@@ -185,7 +188,7 @@ test-multiroom-company (Session)
 
 **✅ YAML Apply Pattern Actual Features:**
 - 🏢 **Declarative Management**: Environment definition via YAML files
-- 🤖 **Multiroom Support**: Window separation by room units
+- 🤖 **Multiroom Support**: Window separation by room units (Frontend/Backend)
 - 🔄 **Auto Room Distribution**: Pane arrangement per room windows
 - 🚀 **Bulk Command Execution**: All panes or room-specific execution
 - 🎯 **Flexible Targeting**: Room-specific command execution
@@ -196,6 +199,193 @@ test-multiroom-company (Session)
 - 🔧 **Dry-run Support**: Command verification before execution
 - 🎯 **Task Assignment System**: Automatic agent directory movement
 - 📋 **Log File Management**: Assignment records via agent_assignment.json
+- 🔗 **Auto-attach Feature**: Automatically attach to session after apply (disable with --no-attach)
+- 🤖 **Claude Auto-execution**: Claude command executed in all panes after creation
+- 🏠 **Relative Path Support**: Clean path display using ~ prefix for home directories
+
+### 📝 YAML Grammar Detailed Explanation
+
+Haconiwa's declarative YAML configuration uses multiple CRDs (Custom Resource Definitions) in multi-document format.
+
+#### 1. Organization CRD (Organization Definition)
+
+```yaml
+apiVersion: haconiwa.dev/v1
+kind: Organization
+metadata:
+  name: test-org-multiroom-tasks  # Unique organization identifier
+spec:
+  companyName: "Test Company Multiroom with Tasks"  # Company name
+  industry: "Software Development"  # Industry
+  basePath: "./test-multiroom-tasks"  # Organization base path
+  hierarchy:
+    departments:  # Department definitions
+    - id: "frontend"  # Department ID (used for room assignment)
+      name: "Frontend Team"
+      description: "Frontend development department"
+      roles:  # Role definitions
+      - roleType: "management"  # Management role
+        title: "Frontend Lead"
+        responsibilities:
+          - "Frontend architecture"
+          - "Team coordination"
+      - roleType: "engineering"  # Engineering role
+        title: "UI Developer"
+        responsibilities:
+          - "UI component development"
+```
+
+**Organization CRD Key Elements:**
+- `metadata.name`: Unique organization identifier (referenced from Space CRD)
+- `spec.hierarchy.departments`: Department definitions (each department maps to a tmux room)
+- `spec.hierarchy.departments[].roles`: Role definitions per department (4 roles form 16 panes)
+
+#### 2. Space CRD (Space Definition)
+
+```yaml
+apiVersion: haconiwa.dev/v1
+kind: Space
+metadata:
+  name: test-world-multiroom-tasks  # Unique space identifier
+spec:
+  nations:  # Nation level (top hierarchy)
+  - id: jp
+    name: Japan
+    cities:  # City level
+    - id: tokyo
+      name: Tokyo
+      villages:  # Village level
+      - id: tech-village
+        name: "Tech Village"
+        companies:  # Company level (tmux session)
+        - name: test-company-multiroom-tasks  # Session name
+          grid: "8x4"  # Grid size (8 columns × 4 rows = 32 panes)
+          basePath: "./test-world-multiroom-tasks"
+          organizationRef: "test-org-multiroom-tasks"  # Organization reference
+          gitRepo:  # Git repository settings
+            url: "https://github.com/anthropics/claude-code.git"
+            defaultBranch: "main"
+            auth: "https"
+          buildings:  # Building level
+          - id: "tech-tower"
+            name: "Tech Tower"
+            floors:  # Floor level
+            - id: "floor-1"
+              name: "Development Floor"
+              rooms:  # Room level (tmux windows)
+              - id: room-frontend  # Frontend window
+                name: "Frontend Room"
+              - id: room-backend   # Backend window
+                name: "Backend Room"
+```
+
+**Space CRD Hierarchy Structure:**
+- `nations` > `cities` > `villages` > `companies` > `buildings` > `floors` > `rooms`
+- Legal framework (law/) can be placed at each hierarchy level
+- `companies` map to tmux sessions
+- `rooms` map to tmux windows
+
+#### 3. Task CRD (Task Definition)
+
+```yaml
+apiVersion: haconiwa.dev/v1
+kind: Task
+metadata:
+  name: task_react_components_01  # Unique task identifier
+spec:
+  taskId: task_react_components_01  # Task ID
+  title: "React Component Library"  # Task title
+  description: |  # Detailed description in markdown format
+    ## React Component Library Development
+    
+    Build reusable React component library.
+    
+    ### Requirements:
+    - TypeScript components
+    - Storybook integration
+    - Unit tests
+    - Documentation
+  assignee: "org01-pm-r1"  # Assigned agent ID
+  spaceRef: "test-company-multiroom-tasks"  # Belonging space
+  priority: "high"  # Priority (high/medium/low)
+  worktree: true  # Whether to create Git worktree
+  branch: "feature/react-components"  # Branch name
+```
+
+**Task CRD Agent ID Rules:**
+- Format: `org{org_number}-{role}-r{room_number}`
+- Example: `org01-pm-r1` = Organization 1's PM, Room 1
+- Role types:
+  - `pm`: Project Manager (management roleType)
+  - `wk-a`, `wk-b`, `wk-c`: Worker A, B, C (engineering roleType)
+
+#### 4. Multi-Document Configuration
+
+```yaml
+# Organization definition
+---
+apiVersion: haconiwa.dev/v1
+kind: Organization
+metadata:
+  name: my-org
+spec:
+  # ...
+
+---
+# Space definition
+apiVersion: haconiwa.dev/v1
+kind: Space
+metadata:
+  name: my-space
+spec:
+  # ...
+
+---
+# Task definitions (multiple allowed)
+apiVersion: haconiwa.dev/v1
+kind: Task
+metadata:
+  name: task-1
+spec:
+  # ...
+```
+
+**YAML File Configuration Best Practices:**
+1. Place organization definition first
+2. Place space definition next
+3. Place task definitions last (recommend grouping by room)
+4. Separate each document with `---`
+
+#### 5. Agent Auto-Placement Rules
+
+**Pane Placement Calculation:**
+- Total panes = grid columns × grid rows (e.g., 8×4=32)
+- Panes per room = total panes ÷ number of rooms (e.g., 32÷2=16)
+- Each organization has 4 panes (PM×1 + Worker×3)
+
+**Agent ID to Pane Mapping:**
+```
+Frontend Room (Window 0):
+- Pane 0-3:   org01 (PM, Worker-A, Worker-B, Worker-C)
+- Pane 4-7:   org02 (PM, Worker-A, Worker-B, Worker-C)
+- Pane 8-11:  org03 (PM, Worker-A, Worker-B, Worker-C)
+- Pane 12-15: org04 (PM, Worker-A, Worker-B, Worker-C)
+
+Backend Room (Window 1):
+- Pane 0-3:   org01 (PM, Worker-A, Worker-B, Worker-C)
+- Pane 4-7:   org02 (PM, Worker-A, Worker-B, Worker-C)
+- Pane 8-11:  org03 (PM, Worker-A, Worker-B, Worker-C)
+- Pane 12-15: org04 (PM, Worker-A, Worker-B, Worker-C)
+```
+
+#### 6. Runtime Processing Flow
+
+1. **YAML Parsing**: Decompose multi-document into individual CRD objects
+2. **Organization Creation**: Build department/role structure from Organization CRD
+3. **Space Creation**: Build tmux session/window structure from Space CRD
+4. **Task Creation**: Create Git worktrees and task assignments from Task CRD
+5. **Agent Placement**: Move panes to task directories based on assignee
+6. **Claude Execution**: Auto-execute `cd {path} && claude` in each pane
 
 ### tmux Multi-Agent Environment (Traditional Method)
 
