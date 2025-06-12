@@ -26,14 +26,15 @@ class TmuxMonitor:
         self.window = window
         self.console = Console()
         self.japanese = japanese
-        self.columns = columns if columns else ["pane", "title", "claude", "agent", "cpu", "memory", "status"]
+        self.columns = columns if columns else ["pane", "title", "task", "claude", "agent", "cpu", "memory", "status"]
         self.agent_mappings = self.load_agent_mappings()
         
         # 日本語テキスト
         self.texts = {
             'en': {
                 'pane': 'Pane',
-                'title': 'Task', 
+                'title': 'Title', 
+                'task': 'Task',
                 'parent': 'Parent',
                 'claude': 'Provider AI',
                 'agent': 'Agent Name',
@@ -57,11 +58,13 @@ class TmuxMonitor:
                 'press_ctrl_c': 'Press Ctrl+C to stop',
                 'waiting_for_work': 'Waiting',
                 'working': 'Working',
-                'busy': 'Busy'
+                'busy': 'Busy',
+                'no_task': '-'
             },
             'ja': {
                 'pane': 'ペイン',
-                'title': 'タスク',
+                'title': 'タイトル',
+                'task': 'タスク',
                 'parent': '親プロセス', 
                 'claude': 'プロバイダAI',
                 'agent': 'エージェント名',
@@ -85,7 +88,8 @@ class TmuxMonitor:
                 'press_ctrl_c': 'Ctrl+Cで停止',
                 'waiting_for_work': '仕事待ち',
                 'working': '作業中',
-                'busy': '多忙'
+                'busy': '多忙',
+                'no_task': '-'
             }
         }
         
@@ -94,9 +98,13 @@ class TmuxMonitor:
     def load_agent_mappings(self):
         """エージェントIDマッピングをdesk_mappings.jsonから読み込み"""
         try:
+            # セッション名からワールドディレクトリ名を推測
+            # haconiwa-dev-company -> haconiwa-dev-world
+            world_dir = self.session_name.replace('-company', '-world')
+            
             # 複数の可能なパスを試行
             possible_paths = [
-                f"test-world-one-room/.haconiwa/desk_mappings.json",
+                f"{world_dir}/.haconiwa/desk_mappings.json",
                 f"{self.session_name}/.haconiwa/desk_mappings.json",
                 f".haconiwa/desk_mappings.json"
             ]
@@ -138,6 +146,27 @@ class TmuxMonitor:
         else:
             return self.get_text('busy')
     
+    def extract_task_name(self, pane_title):
+        """ペインタイトルからタスク名を抽出"""
+        # "[Task: task_name]" パターンを探す
+        match = re.search(r'\[Task:\s*([^\]]+)\]', pane_title)
+        if match:
+            return match.group(1).strip()
+        return None
+    
+    def extract_task_id_from_path(self, current_path):
+        """現在のパスからタスクIDを抽出"""
+        if not current_path:
+            return None
+        
+        # パスからtask_で始まるディレクトリ名を探す
+        path_parts = Path(current_path).parts
+        for part in path_parts:
+            if part.startswith('task_') and not part == 'tasks':
+                return part
+        
+        return None
+    
     def get_tmux_windows_info(self):
         """tmux window情報を取得"""
         try:
@@ -165,19 +194,20 @@ class TmuxMonitor:
                 # 特定のwindowのみ取得
                 result = subprocess.run([
                     'tmux', 'list-panes', '-t', f'{self.session_name}:{self.window}', 
-                    '-F', str(self.window) + ':#{pane_index}:#{pane_title}:#{pane_pid}'
+                    '-F', str(self.window) + ':#{pane_index}:#{pane_title}:#{pane_pid}:#{pane_current_path}'
                 ], capture_output=True, text=True, timeout=1)
                 
                 if result.returncode == 0:
                     for line in result.stdout.strip().split('\n'):
                         if ':' in line:
-                            parts = line.split(':', 3)
-                            if len(parts) >= 4:
+                            parts = line.split(':', 4)
+                            if len(parts) >= 5:
                                 panes.append({
                                     'window': int(parts[0]),
                                     'index': int(parts[1]),
                                     'title': parts[2],
-                                    'pid': int(parts[3]) if parts[3].isdigit() else 0
+                                    'pid': int(parts[3]) if parts[3].isdigit() else 0,
+                                    'current_path': parts[4]
                                 })
             else:
                 # 全windowのペイン情報を取得
@@ -192,19 +222,20 @@ class TmuxMonitor:
                             # 各windowのペイン情報を取得
                             result = subprocess.run([
                                 'tmux', 'list-panes', '-t', f'{self.session_name}:{window_index}', 
-                                '-F', window_index + ':#{pane_index}:#{pane_title}:#{pane_pid}'
+                                '-F', window_index + ':#{pane_index}:#{pane_title}:#{pane_pid}:#{pane_current_path}'
                             ], capture_output=True, text=True, timeout=1)
                             
                             if result.returncode == 0:
                                 for line in result.stdout.strip().split('\n'):
                                     if ':' in line and line.strip():
-                                        parts = line.split(':', 3)
-                                        if len(parts) >= 4:
+                                        parts = line.split(':', 4)
+                                        if len(parts) >= 5:
                                             panes.append({
                                                 'window': int(parts[0]),
                                                 'index': int(parts[1]),
                                                 'title': parts[2],
-                                                'pid': int(parts[3]) if parts[3].isdigit() else 0
+                                                'pid': int(parts[3]) if parts[3].isdigit() else 0,
+                                                'current_path': parts[4]
                                             })
             
             return panes
@@ -304,6 +335,7 @@ class TmuxMonitor:
             'window': {"header": self.get_text('window'), "style": "bright_yellow", "width": 8},
             'pane': {"header": self.get_text('pane'), "style": "dim", "width": 6},
             'title': {"header": self.get_text('title'), "style": "cyan", "min_width": 20},
+            'task': {"header": self.get_text('task'), "style": "bright_yellow", "min_width": 20},
             'parent': {"header": self.get_text('parent'), "style": "dim", "width": 12},
             'claude': {"header": self.get_text('claude'), "style": "bright_green", "width": 15},
             'agent': {"header": self.get_text('agent'), "style": "bright_cyan", "width": 20},
@@ -326,6 +358,7 @@ class TmuxMonitor:
             pane_index = pane['index']
             pane_title = pane['title']
             pane_pid = pane['pid']
+            pane_current_path = pane.get('current_path', '')
             window_name = windows_info.get(window_index, f"Window-{window_index}")
             
             # そのペインのPIDに対応するClaudeプロセスを探す
@@ -346,7 +379,35 @@ class TmuxMonitor:
                 elif col_name == 'pane':
                     row_data.append(str(pane_index))
                 elif col_name == 'title':
-                    row_data.append(pane_title)
+                    # エージェント名とカレントディレクトリを表示
+                    agent_id = self.get_agent_id_for_pane(window_index, pane_index)
+                    
+                    # パスから最後のディレクトリ名を取得
+                    if pane_current_path:
+                        # ホームディレクトリを~に置換
+                        home_path = str(Path.home())
+                        display_path = pane_current_path.replace(home_path, '~')
+                        # 最後のディレクトリ名のみを取得
+                        dir_name = Path(pane_current_path).name
+                    else:
+                        dir_name = "unknown"
+                    
+                    # エージェント名 - ディレクトリ名の形式で表示
+                    display_title = f"{agent_id} - {dir_name}"
+                    row_data.append(display_title)
+                elif col_name == 'task':
+                    # まずペインタイトルからタスク名を抽出を試みる
+                    task_name = self.extract_task_name(pane_title)
+                    
+                    # ペインタイトルにタスク名がない場合は、パスから抽出
+                    if not task_name:
+                        task_id = self.extract_task_id_from_path(pane_current_path)
+                        task_name = task_id
+                    
+                    if task_name:
+                        row_data.append(f"[bright_yellow]{task_name}[/bright_yellow]")
+                    else:
+                        row_data.append(f"[dim]{self.get_text('no_task')}[/dim]")
                 elif col_name == 'parent':
                     row_data.append(str(pane_pid))
                 elif col_name == 'claude':

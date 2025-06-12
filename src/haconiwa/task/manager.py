@@ -20,12 +20,18 @@ class TaskManager:
         if cls._instance is None:
             cls._instance = super(TaskManager, cls).__new__(cls)
             cls._instance.tasks = {}
+            cls._instance.default_branch = "main"  # Default value
             cls._initialized = True
         return cls._instance
     
     def __init__(self):
         # Only initialize once
         pass
+    
+    def set_default_branch(self, branch: str):
+        """Set the default branch to use for creating new branches"""
+        self.default_branch = branch
+        logger.info(f"TaskManager default branch set to: {branch}")
     
     def create_task(self, config: Dict[str, Any]) -> bool:
         """Create task from configuration with Git worktree"""
@@ -106,7 +112,28 @@ class TaskManager:
             # Create new branch and worktree
             logger.info(f"Creating worktree: {worktree_path} for branch: {branch}")
             
-            # Create and checkout new branch (without changing directory)
+            # First, ensure we're on the default branch and it's up to date
+            logger.info(f"Fetching and checking out {self.default_branch} branch")
+            
+            # Fetch the latest from origin
+            fetch_result = subprocess.run(['git', '-C', str(main_repo_path), 'fetch', 'origin', self.default_branch], 
+                                        capture_output=True, text=True)
+            if fetch_result.returncode != 0:
+                logger.warning(f"Failed to fetch {self.default_branch}: {fetch_result.stderr}")
+            
+            # Checkout the default branch
+            checkout_result = subprocess.run(['git', '-C', str(main_repo_path), 'checkout', self.default_branch], 
+                                           capture_output=True, text=True)
+            if checkout_result.returncode != 0:
+                logger.warning(f"Failed to checkout {self.default_branch}: {checkout_result.stderr}")
+            
+            # Pull latest changes
+            pull_result = subprocess.run(['git', '-C', str(main_repo_path), 'pull', 'origin', self.default_branch], 
+                                       capture_output=True, text=True)
+            if pull_result.returncode != 0:
+                logger.warning(f"Failed to pull {self.default_branch}: {pull_result.stderr}")
+            
+            # Create and checkout new branch from the default branch
             result1 = subprocess.run(['git', '-C', str(main_repo_path), 'checkout', '-b', branch], 
                                    capture_output=True, text=True)
             if result1.returncode != 0:
@@ -116,8 +143,8 @@ class TaskManager:
                 if result1.returncode != 0:
                     logger.warning(f"Failed to create/checkout branch {branch}: {result1.stderr}")
             
-            # Switch back to main branch
-            subprocess.run(['git', '-C', str(main_repo_path), 'checkout', 'main'], 
+            # Switch back to default branch
+            subprocess.run(['git', '-C', str(main_repo_path), 'checkout', self.default_branch], 
                          capture_output=True, text=True)
             
             # Create worktree (using absolute paths)

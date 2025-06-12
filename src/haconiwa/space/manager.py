@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 import logging
 import json
+import glob
 
 from ..core.crd.models import SpaceCRD
 
@@ -106,8 +107,21 @@ class SpaceManager:
             panes_per_window = layout_info["panes_per_window"]
             
             # Create panes in each window and set up desks
+            # Only process rooms that actually have windows created
+            valid_room_ids = [room["id"] for room in rooms]
+            
             for room_id, desks_in_room in desk_distribution.items():
+                # Skip room if it doesn't have a window
+                if room_id not in valid_room_ids:
+                    logger.warning(f"Skipping room {room_id} - no window created for it")
+                    continue
+                    
                 window_id = self._get_window_id_for_room(room_id)
+                
+                # Validate window_id is within valid range
+                if window_id.isdigit() and int(window_id) >= len(rooms):
+                    logger.error(f"Invalid window_id {window_id} for room {room_id} - only {len(rooms)} windows exist")
+                    continue
                 
                 # Get pane count for this specific room
                 if isinstance(panes_per_window, dict):
@@ -136,6 +150,9 @@ class SpaceManager:
                         logger.warning(f"Skipping extra mapping {pane_index} for {room_id}")
                         break
                     
+                    # Debug: Log the desk mapping being used
+                    logger.debug(f"Setting up pane {window_id}.{pane_index} with agent_id: {desk_mapping.get('agent_id', 'MISSING')}")
+                    
                     desk_dir = self._create_desk_directory(base_path, desk_mapping)
                     self._update_pane_in_window(session_name, window_id, pane_index, desk_mapping, desk_dir)
             
@@ -145,7 +162,8 @@ class SpaceManager:
                 "base_path": str(base_path),
                 "desk_mappings": desk_mappings,
                 "desk_distribution": desk_distribution,
-                "session_name": session_name
+                "session_name": session_name,
+                "rooms": rooms  # Store rooms list for accurate window mapping
             }
             
             # Calculate actual pane count
@@ -206,61 +224,86 @@ class SpaceManager:
             # Calculate room number for agent ID format
             room_num = room_idx + 1  # r1, r2, etc.
             
+            # Determine which department should be in this room
+            if room_idx == 0:
+                # First room - Executive Team
+                target_dept_id = "executive"
+                dept_name = "Executive Team"
+                org_id = "01"
+            else:
+                # Second room - Standby Team  
+                target_dept_id = "standby"
+                dept_name = "Standby Team"
+                org_id = "02"
+            
+            # Get department roles from Organization CRD
+            dept_roles = None
+            if organization_crd and target_dept_id:
+                if target_dept_id not in dept_roles_cache:
+                    dept_roles_cache[target_dept_id] = self._get_department_roles(organization_crd, target_dept_id)
+                dept_roles = dept_roles_cache[target_dept_id]
+            
             # Generate enough desks to fill all panes in this room
             for desk_idx in range(panes_per_room):
-                # Determine organization assignment
-                if organizations:
-                    org_idx = desk_idx % len(organizations)
-                    org = organizations[org_idx]
-                    org_id = org.get("id", f"{org_idx+1:02d}")
-                    org_name = org.get("name", f"Organization {org_idx+1}")
-                    dept_id = org.get("department_id", "dev")
-                else:
-                    org_id = "01"
-                    org_name = "Default Organization"
-                    dept_id = "dev"
-                
-                # Determine role based on desk position within organization
-                org_desk_count = panes_per_room // len(organizations) if organizations else panes_per_room
-                desk_in_org = desk_idx % org_desk_count if org_desk_count > 0 else desk_idx
-                
-                # Try to get specific agent ID from organization CRD
+                # Get agent ID directly from Organization CRD roles
                 agent_id = None
-                role_name = None
+                role_name = f"agent-{desk_idx+1}"  # fallback
+                title = f"Agent {desk_idx+1}"  # fallback
                 
-                if organization_crd and dept_id:
-                    # Cache department roles to avoid repeated lookups
-                    if dept_id not in dept_roles_cache:
-                        dept_roles_cache[dept_id] = self._get_department_roles(organization_crd, dept_id)
+                if dept_roles:
+                    # Use all_roles directly from the new structure
+                    all_roles = dept_roles.get('all_roles', [])
                     
-                    dept_roles = dept_roles_cache[dept_id]
-                    if dept_roles:
-                        # Map desk position to role
-                        if desk_in_org == 0 and dept_roles.get('lead_role'):
-                            role_obj = dept_roles['lead_role']
-                            agent_id = getattr(role_obj, 'agentId', None)
-                            role_name = "pm"  # Keep consistent role name
-                        elif desk_in_org > 0 and dept_roles.get('worker_roles'):
-                            worker_idx = desk_in_org - 1
-                            worker_roles = dept_roles['worker_roles']
-                            if worker_idx < len(worker_roles):
-                                role_obj = worker_roles[worker_idx]
-                                agent_id = getattr(role_obj, 'agentId', None)
-                                role_name = f"wk-{chr(ord('a') + worker_idx)}" if worker_idx < 26 else f"wk-{worker_idx}"
+                    # If all_roles is not available, fall back to legacy structure
+                    if not all_roles:
+                        all_roles = []
+                        if dept_roles.get('lead_role'):
+                            all_roles.append(dept_roles['lead_role'])
+                        if dept_roles.get('worker_roles'):
+                            all_roles.extend(dept_roles['worker_roles'])
+                    
+                    # Debug logging for agentId reading order
+                    logger.debug(f"Department {target_dept_id} - Total roles: {len(all_roles)}")
+                    for idx, role in enumerate(all_roles):
+                        role_agent_id = getattr(role, 'agentId', 'None')
+                        role_title = getattr(role, 'title', 'Unknown')
+                        logger.debug(f"  Role[{idx}]: title='{role_title}', agentId='{role_agent_id}'")
+                    
+                    # Map desk index to role
+                    if desk_idx < len(all_roles):
+                        role_obj = all_roles[desk_idx]
+                        agent_id = getattr(role_obj, 'agentId', None)
+                        title = getattr(role_obj, 'title', f"Agent {desk_idx+1}")
+                        logger.debug(f"Desk {desk_idx} -> Role: title='{title}', agentId='{agent_id}'")
+                        
+                        # Determine role name for directory structure
+                        if desk_idx == 0:
+                            role_name = "pm"
+                        else:
+                            role_name = f"wk-{chr(ord('a') + desk_idx - 1)}" if desk_idx <= 26 else f"wk-{desk_idx}"
                 
-                # Fall back to default agent ID generation if not specified
+                # Fall back to default agent ID if not found in CRD
                 if not agent_id:
-                    if desk_in_org == 0:
+                    # Generate dynamic agent ID based on department and desk position
+                    if target_dept_id == "executive":
+                        # Generate executive agent ID dynamically
+                        agent_id = f"exec-{desk_idx+1:02d}"
+                        title = f"Executive {desk_idx+1}"
+                        
+                    elif target_dept_id == "standby":
+                        # Generate standby agent ID dynamically
+                        agent_id = f"standby-dev-{desk_idx+1:02d}"
+                        title = f"Standby Developer {desk_idx+1:02d}"
+                    
+                    # Determine role name
+                    if desk_idx == 0:
                         role_name = "pm"
                     else:
-                        worker_idx = desk_in_org - 1
-                        role_name = f"wk-{chr(ord('a') + worker_idx)}" if worker_idx < 26 else f"wk-{worker_idx}"
-                    
-                    # Generate agent ID in expected format
-                    agent_id = f"org{org_id}-{role_name}-r{room_num}"
-                desk_id = f"desk-{room_id}-{org_id}-{desk_idx:02d}"
-                dir_name = f"{org_id}{role_name.replace('wk-', '')}"
-                title = f"{org_name} - {role_name.upper()} - {room_name}"
+                        role_name = f"wk-{chr(ord('a') + desk_idx - 1)}" if desk_idx <= 26 else f"wk-{desk_idx}"
+                
+                desk_id = f"desk-{room_id}-{desk_idx:02d}"
+                dir_name = f"{target_dept_id[:4]}-{desk_idx+1:02d}"  # exec-01, exec-02, ..., stan-01, stan-02, ...
+                pane_title = f"{dept_name} - {title} - {room_name}"
                 
                 mappings.append({
                     "desk_id": desk_id,
@@ -269,7 +312,7 @@ class SpaceManager:
                     "role": role_name,
                     "room_id": room_id,
                     "directory_name": dir_name,
-                    "title": title
+                    "title": pane_title
                 })
                 desk_counter += 1
         
@@ -779,8 +822,12 @@ class SpaceManager:
     def _get_agent_id_from_pane_mapping(self, mapping: Dict[str, Any]) -> str:
         """Generate agent ID from pane mapping for task assignment lookup"""
         # Check if agent_id is directly provided in mapping
-        if "agent_id" in mapping:
+        if "agent_id" in mapping and mapping["agent_id"]:
+            logger.debug(f"Using agent_id from mapping: {mapping['agent_id']}")
             return mapping["agent_id"]
+        
+        # Log warning if agent_id is missing
+        logger.warning(f"No agent_id in mapping, falling back to generation. Mapping: {mapping}")
         
         # Check if desk_id already contains a well-formed agent ID
         desk_id = mapping.get("desk_id", "")
@@ -905,10 +952,8 @@ class SpaceManager:
                    f"cd {standby_path}", "Enter"]
             result1 = subprocess.run(cmd, capture_output=True, text=True)
             
-            # Set standby pane title
-            org_name = mapping.get("title", f"Agent {agent_id}").split(" - ")[0]  # Extract org name
-            room_name = mapping.get("title", "").split(" - ")[-1] if " - " in mapping.get("title", "") else "Unknown Room"
-            standby_title = f"{org_name} - 待機中 - {room_name}"
+            # Set standby pane title with agent ID and standby directory
+            standby_title = f"{agent_id} - standby"
             cmd = ["tmux", "select-pane", "-t", f"{session_name}:{window_id}.{pane_index}", "-T", standby_title]
             result2 = subprocess.run(cmd, capture_output=True, text=True)
             
@@ -1016,9 +1061,8 @@ class SpaceManager:
             
             result1 = subprocess.run(cmd, capture_output=True, text=True)
             
-            # Update pane title to include task info
-            original_title = mapping.get("title", f"Desk {mapping['desk_id']}")
-            new_title = f"{original_title} [Task: {task_name}]"
+            # Update pane title with agent ID and task directory
+            new_title = f"{agent_id} - {task_name}"
             cmd = ["tmux", "select-pane", "-t", f"{session_name}:{window_id}.{pane_index}", "-T", new_title]
             result2 = subprocess.run(cmd, capture_output=True, text=True)
             
@@ -1106,14 +1150,26 @@ class SpaceManager:
         if hasattr(self, 'active_sessions') and self.active_sessions:
             # Get the first active session
             session_data = next(iter(self.active_sessions.values()), {})
-            desk_distribution = session_data.get('desk_distribution', {})
             
-            # Get ordered list of room IDs
+            # First check if we have stored rooms list (preferred method)
+            rooms = session_data.get('rooms', [])
+            if rooms:
+                for idx, room in enumerate(rooms):
+                    if room.get('id') == room_id:
+                        return str(idx)
+            
+            # Fallback to desk_distribution if rooms not stored
+            desk_distribution = session_data.get('desk_distribution', {})
             room_ids = list(desk_distribution.keys())
             
             # Find the index of this room_id
             if room_id in room_ids:
-                return str(room_ids.index(room_id))
+                idx = room_ids.index(room_id)
+                # Validate against actual room count
+                if rooms and idx >= len(rooms):
+                    logger.warning(f"Room index {idx} exceeds actual room count {len(rooms)} for {room_id}")
+                    return "0"
+                return str(idx)
         
         # Fallback: Handle specific room names
         if room_id == "room-01" or room_id == "room-frontend":
@@ -1121,13 +1177,16 @@ class SpaceManager:
         elif room_id == "room-02" or room_id == "room-backend":
             return "1"
         elif room_id == "room-executive":
-            return "2"
+            return "0"  # Executive room is the first window
+        elif room_id == "room-standby":
+            return "1"  # Standby room is the second window
         else:
             # Extract number from room-XX format
             try:
                 room_num = int(room_id.split("-")[1])
                 return str(room_num - 1)
             except (IndexError, ValueError):
+                logger.warning(f"Unknown room_id format: {room_id}, defaulting to window 0")
                 return "0"
     
     def _calculate_panes_per_window(self, grid: str, room_count: int) -> Dict[str, Any]:
@@ -2199,8 +2258,14 @@ class SpaceManager:
                             for idx, mapping in enumerate(desk_mappings):
                                 if mapping.get('agent_id') == agent_id:
                                     # Calculate window and pane from index
-                                    window_id = "0"  # For single room
-                                    pane_index = idx
+                                    # First 16 panes (0-15) -> window 0 (Executive)
+                                    # Next 16 panes (16-31) -> window 1 (Standby)
+                                    if idx < 16:
+                                        window_id = "0"
+                                        pane_index = idx
+                                    else:
+                                        window_id = "1"
+                                        pane_index = idx - 16
                                     
                                     # Move to task directory and start claude
                                     task_path = task_dir.absolute()
@@ -2247,6 +2312,25 @@ class SpaceManager:
                         logger.debug(f"Found Organization CRD for display: {resource.metadata.name}")
                         return resource
             
+            # Alternative: Try to find and read organization CRD from current directory
+            logger.warning("Could not access Organization CRD via applier, attempting direct file access")
+            
+            # Look for YAML files that might contain Organization CRD
+            yaml_files = glob.glob("*.yaml") + glob.glob("*.yml")
+            for yaml_file in yaml_files:
+                try:
+                    # Use existing parser instead of CRDLoader
+                    from ..core.crd.parser import parse_yaml_file
+                    crds = parse_yaml_file(yaml_file)
+                    
+                    for crd in crds:
+                        if hasattr(crd, 'kind') and crd.kind == 'Organization':
+                            logger.info(f"Found Organization CRD in {yaml_file}: {crd.metadata.name}")
+                            return crd
+                except Exception as e:
+                    logger.debug(f"Failed to load {yaml_file}: {e}")
+                    continue
+            
             return None
             
         except Exception as e:
@@ -2266,39 +2350,36 @@ class SpaceManager:
                     logger.debug(f"Found {len(roles)} roles for department {department_id}")
                     
                     # Extract lead and worker roles
-                    lead_role = None
-                    worker_roles = []
+                    # Return all roles in the order they appear in YAML
+                    # This supports 32-pane structure properly
+                    all_roles = []
                     
                     for role in roles:
                         role_type = getattr(role, 'roleType', '')
                         title = getattr(role, 'title', '')
+                        agent_id = getattr(role, 'agentId', None)
                         
-                        # Identify lead roles (management type or specific titles)
-                        if (role_type == 'management' or 
-                            'lead' in title.lower() or 
-                            'manager' in title.lower() or
-                            'head' in title.lower()):
-                            lead_role = role  # Store role object
-                        else:
-                            worker_roles.append(role)  # Store role object
+                        logger.debug(f"Processing role: title='{title}', roleType='{role_type}', agentId='{agent_id}'")
+                        all_roles.append(role)
                     
-                    # Ensure we have at least 3 worker roles for 32-pane structure
-                    while len(worker_roles) < 3:
-                        # Create dummy role objects
-                        from ..core.crd.models import RoleConfig
-                        dummy_role = RoleConfig(
-                            roleType="engineering",
-                            title=f"Worker {len(worker_roles) + 1}",
-                            responsibilities=[]
-                        )
-                        worker_roles.append(dummy_role)
+                    # Log summary of all roles being returned
+                    logger.debug(f"Returning {len(all_roles)} roles for department {department_id}:")
+                    for idx, role in enumerate(all_roles):
+                        logger.debug(f"  Role[{idx}]: {getattr(role, 'title', 'Unknown')} (agentId: {getattr(role, 'agentId', 'None')})")
                     
-                    return {
-                        "lead": lead_role or "Team Lead",
-                        "workers": worker_roles[:3],  # Take first 3 for consistency
-                        "lead_role": lead_role,  # Add role objects
-                        "worker_roles": worker_roles[:3]
+                    # Return structure that maintains backward compatibility
+                    # but includes all roles
+                    result = {
+                        "all_roles": all_roles,  # All roles in order
+                        "role_objects": all_roles,  # Same as all_roles for compatibility
+                        # Legacy fields for backward compatibility
+                        "lead": all_roles[0] if all_roles else None,
+                        "workers": all_roles[1:4] if len(all_roles) > 1 else [],
+                        "lead_role": all_roles[0] if all_roles else None,
+                        "worker_roles": all_roles[1:4] if len(all_roles) > 1 else []
                     }
+                    
+                    return result
             
             return None
             

@@ -725,10 +725,10 @@ def monitor_main(
     
     # Default columns if not specified
     if columns is None:
-        columns = ["room", "pane", "title", "claude", "agent", "cpu", "status"]
+        columns = ["room", "pane", "title", "task", "claude", "agent", "cpu", "status"]
     
     # Validate columns
-    valid_columns = ["room", "window", "pane", "title", "parent", "claude", "agent", "cpu", "memory", "uptime", "status"]
+    valid_columns = ["room", "window", "pane", "title", "task", "parent", "claude", "agent", "cpu", "memory", "uptime", "status"]
     for col in columns:
         if col not in valid_columns:
             typer.echo(f"❌ Invalid column: {col}", err=True)

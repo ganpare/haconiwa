@@ -344,6 +344,12 @@ class CRDApplier:
             from ..task.manager import TaskManager
             task_manager = TaskManager()
             
+            # Set default branch from Space configuration
+            if config.get("git_repo") and config["git_repo"].get("defaultBranch"):
+                default_branch = config["git_repo"]["defaultBranch"]
+                task_manager.set_default_branch(default_branch)
+                logger.info(f"Set TaskManager default branch to: {default_branch}")
+            
             # Pass task assignments to SpaceManager
             task_assignments = {}
             for task_name, task_data in task_manager.tasks.items():
