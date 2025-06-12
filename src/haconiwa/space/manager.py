@@ -1607,6 +1607,31 @@ class SpaceManager:
             
             if result.returncode == 0:
                 logger.info(f"✅ Successfully cloned repository from {url}")
+                
+                # Checkout and pull the specified default branch
+                default_branch = git_config.get("defaultBranch", "main")
+                logger.info(f"Checking out and pulling branch: {default_branch}")
+                
+                # Fetch all branches first
+                fetch_cmd = ["git", "-C", str(main_repo_path), "fetch", "origin"]
+                fetch_result = subprocess.run(fetch_cmd, capture_output=True, text=True)
+                if fetch_result.returncode != 0:
+                    logger.warning(f"Failed to fetch branches: {fetch_result.stderr}")
+                
+                # Checkout the default branch
+                checkout_cmd = ["git", "-C", str(main_repo_path), "checkout", default_branch]
+                checkout_result = subprocess.run(checkout_cmd, capture_output=True, text=True)
+                if checkout_result.returncode != 0:
+                    logger.warning(f"Failed to checkout {default_branch}: {checkout_result.stderr}")
+                
+                # Pull latest changes
+                pull_cmd = ["git", "-C", str(main_repo_path), "pull", "origin", default_branch]
+                pull_result = subprocess.run(pull_cmd, capture_output=True, text=True)
+                if pull_result.returncode != 0:
+                    logger.warning(f"Failed to pull {default_branch}: {pull_result.stderr}")
+                else:
+                    logger.info(f"✅ Successfully checked out and pulled {default_branch} branch")
+                
                 return True
             else:
                 logger.error(f"❌ Failed to clone repository: {result.stderr}")

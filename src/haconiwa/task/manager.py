@@ -134,7 +134,7 @@ class TaskManager:
                 logger.warning(f"Failed to pull {self.default_branch}: {pull_result.stderr}")
             
             # Create and checkout new branch from the default branch
-            result1 = subprocess.run(['git', '-C', str(main_repo_path), 'checkout', '-b', branch], 
+            result1 = subprocess.run(['git', '-C', str(main_repo_path), 'checkout', '-b', branch, f'origin/{self.default_branch}'], 
                                    capture_output=True, text=True)
             if result1.returncode != 0:
                 # Branch might already exist, try to checkout

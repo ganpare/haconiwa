@@ -479,11 +479,10 @@ def space_delete(
             else:
                 typer.echo(f"❌ Failed to kill session: {result.stderr}", err=True)
         
-        # Clean directories
+        # Clean directories if requested
         if clean_dirs:
             import glob
             import os
-            
             # Standard directory patterns
             dirs_to_clean = [
                 f"./{company}",
@@ -506,8 +505,9 @@ def space_delete(
                 for matched_dir in matched_dirs:
                     if matched_dir not in dirs_to_clean:
                         dirs_to_clean.append(matched_dir)
-            
-            # Clean up git worktrees first (before removing directories)
+        
+        # Clean up git worktrees first (before removing directories)
+        if dirs_to_clean:
             cleaned_worktrees = []
             for dir_path in dirs_to_clean:
                 if Path(dir_path).exists():
@@ -563,11 +563,8 @@ def space_delete(
                         typer.echo(f"❌ Failed to remove {dir_path}: {e}", err=True)
             
             # Summary
-            total_cleaned = len(cleaned_dirs) + len(cleaned_worktrees)
-            if total_cleaned > 0:
+            if cleaned_dirs or cleaned_worktrees:
                 typer.echo(f"🗑️ Cleaned {len(cleaned_dirs)} directories and {len(cleaned_worktrees)} git worktrees")
-            else:
-                typer.echo("ℹ️ No directories found to clean")
         
         # Remove from SpaceManager tracking
         space_manager = SpaceManager()
