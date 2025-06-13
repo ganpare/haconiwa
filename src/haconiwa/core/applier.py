@@ -25,6 +25,7 @@ class CRDApplier:
     def __init__(self):
         self.applied_resources = {}
         self.force_clone = False  # Default to False
+        self.env_files = []  # List of environment files to copy
     
     def apply(self, crd: Union[SpaceCRD, AgentCRD, TaskCRD, PathScanCRD, DatabaseCRD, CommandPolicyCRD, OrganizationCRD]) -> bool:
         """Apply CRD to the system"""

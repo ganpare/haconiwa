@@ -1128,6 +1128,181 @@ MIT License - 詳細は [LICENSE](LICENSE) ファイルをご覧ください。
 - メール: kanri@kandaquantum.co.jp
 
 
+## 📋 環境変数管理計画（Apply YAML）
+
+### 概要
+Haconiwaの宣言型YAML設定に環境変数管理機能を追加します。シンプルなアプローチとして、apply時に指定した.envファイルを各タスクのgit worktreeディレクトリに自動コピーする方式を採用します。
+
+### 1. シンプルな.envファイル自動コピー方式
+
+#### 基本コンセプト
+- apply時に`.env`ファイルを指定
+- 各タスクのgit worktreeディレクトリに自動的にコピー
+- 各エージェントは自分のディレクトリの`.env`を読み込んで使用
+
+#### CLIコマンド使用例
+```bash
+# .envファイルを指定してapply
+haconiwa apply -f haconiwa-dev-company.yaml --env .env
+
+# 複数の.envファイルを指定（マージされる）
+haconiwa apply -f haconiwa-dev-company.yaml --env .env.base --env .env.local
+
+# 環境別の.envファイル
+haconiwa apply -f haconiwa-dev-company.yaml --env .env.production
+```
+
+#### .envファイルの例
+```bash
+# .env.base - 基本設定
+COMPANY_NAME="Haconiwa Development Company"
+API_ENDPOINT="https://api.haconiwa.dev"
+LOG_LEVEL="INFO"
+TIMEZONE="Asia/Tokyo"
+LOCALE="ja_JP.UTF-8"
+
+# .env.local - ローカル開発用（.gitignoreに追加）
+ANTHROPIC_API_KEY="sk-ant-api03-..."
+CLAUDE_MODEL="claude-3-opus-20240229"
+DEBUG_MODE="true"
+DATABASE_URL="postgresql://user:pass@localhost:5432/haconiwa_dev"
+REDIS_URL="redis://localhost:6379"
+```
+
+### 2. 自動コピーの動作フロー
+
+```
+1. haconiwa apply実行時に--envフラグを確認
+    ↓
+2. 指定された.envファイルを読み込み
+    ↓
+3. 複数ファイルの場合はマージ（後のファイルが優先）
+    ↓
+4. git worktree作成時に各タスクディレクトリに.envをコピー
+    ↓
+5. 各エージェントは自分のディレクトリの.envを使用
+```
+
+#### ファイル配置の結果
+```
+./haconiwa-dev-world/
+└── tasks/
+    ├── task_backend_optimization_06/
+    │   ├── .env               # 自動コピーされた環境変数ファイル
+    │   ├── src/
+    │   └── ...
+    ├── task_ai_strategy_01/
+    │   ├── .env               # 同じ内容がコピーされる
+    │   ├── docs/
+    │   └── ...
+    └── task_frontend_ui_02/
+        ├── .env               # 同じ内容がコピーされる
+        ├── components/
+        └── ...
+```
+
+### 3. Space CRDでの環境変数ファイル指定（オプション）
+
+```yaml
+apiVersion: haconiwa.dev/v1
+kind: Space
+metadata:
+  name: haconiwa-dev-world
+spec:
+  nations:
+    - id: jp
+      cities:
+        - id: tokyo
+          villages:
+            - id: haconiwa-village
+              companies:
+                - name: haconiwa-dev-company
+                  # 環境変数ファイルの指定（オプション）
+                  envFiles:
+                    - path: ".env.base"        # 基本設定
+                    - path: ".env.production"  # 本番環境設定
+                    - path: ".env.secrets"     # シークレット（gitignore推奨）
+                  gitRepo:
+                    url: "https://github.com/dai-motoki/haconiwa"
+                    defaultBranch: "main"
+```
+
+### 4. メリット
+
+1. **シンプル**: 複雑な継承メカニズムが不要
+2. **標準的**: .envファイルは多くの開発者が慣れ親しんだ形式
+3. **柔軟**: 環境別に異なる.envファイルを簡単に切り替え可能
+4. **独立性**: 各タスクが独自の環境変数セットを持つ
+5. **互換性**: 既存のツールやライブラリと相性が良い
+
+### 5. 実装時の考慮事項
+
+#### 5.1 .gitignoreの自動更新
+```bash
+# タスクディレクトリ作成時に.gitignoreも自動生成
+echo ".env" >> ./tasks/task_backend_optimization_06/.gitignore
+echo ".env.local" >> ./tasks/task_backend_optimization_06/.gitignore
+echo ".env.*.local" >> ./tasks/task_backend_optimization_06/.gitignore
+```
+
+#### 5.2 環境変数の読み込み方法
+```bash
+# 各ペインでclaudeコマンド実行前に.envを読み込み
+cd /path/to/task && source .env && claude
+
+# またはdotenvツールを使用
+cd /path/to/task && dotenv claude
+```
+
+#### 5.3 テンプレート機能（将来的な拡張）
+```bash
+# .env.templateファイルから動的に生成
+TASK_ID={{TASK_ID}}
+TASK_BRANCH={{BRANCH_NAME}}
+ASSIGNED_AGENT={{AGENT_ID}}
+CREATED_AT={{TIMESTAMP}}
+```
+
+### 6. セキュリティ考慮事項
+
+#### 6.1 .gitignoreの推奨設定
+```gitignore
+# 環境変数ファイル
+.env
+.env.local
+.env.*.local
+.env.secrets
+
+# 本番環境の設定は特に注意
+.env.production
+.env.staging
+```
+
+#### 6.2 環境変数ファイルの管理
+- `.env.base`: リポジトリにコミット可能（機密情報を含まない）
+- `.env.local`: ローカル開発用（.gitignoreに追加）
+- `.env.secrets`: API キーなど（絶対にコミットしない）
+
+### 7. 実装の優先順位
+
+1. **フェーズ1**: 基本的な.envファイルコピー機能
+   - `haconiwa apply --env`フラグの実装
+   - git worktree作成時の自動コピー機能
+
+2. **フェーズ2**: 複数ファイルのマージ機能
+   - 複数の`--env`フラグをサポート
+   - 環境変数のマージロジック実装
+
+3. **フェーズ3**: YAMLでの環境変数ファイル指定
+   - Space CRDの`envFiles`フィールド実装
+   - CLIフラグとYAML設定の統合
+
+4. **フェーズ4**: テンプレート機能
+   - 動的な環境変数生成
+   - タスク固有の変数注入
+
+この方式により、シンプルで実用的な環境変数管理を実現し、各エージェントが必要な設定を簡単に利用できるようになります。
+
 ---
 
 **箱庭 (Haconiwa)** - AI協調開発の未来 🚧 

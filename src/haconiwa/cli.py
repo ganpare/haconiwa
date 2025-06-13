@@ -101,6 +101,7 @@ def apply(
     force_clone: bool = typer.Option(False, "--force-clone", help="既存ディレクトリを確認なしで削除してGitクローン"),
     no_attach: bool = typer.Option(False, "--no-attach", help="適用後にセッションにアタッチしない"),
     room: str = typer.Option("room-01", "-r", "--room", help="アタッチするルーム"),
+    env: List[str] = typer.Option([], "--env", help="環境変数ファイル（複数指定可）"),
 ):
     """CRD定義ファイルを適用"""
     file_path = Path(file)
@@ -118,12 +119,18 @@ def apply(
     # Set force_clone flag in applier
     applier.force_clone = force_clone
     
+    # Set env files in applier
+    if env:
+        applier.env_files = env
+    
     if dry_run:
         typer.echo("🔍 Dry run mode - no changes will be applied")
         if should_attach:
             typer.echo(f"🔗 Would attach to session after apply (room: {room})")
         else:
             typer.echo("🔗 Would NOT attach to session (--no-attach specified)")
+        if env:
+            typer.echo(f"🔧 Would use environment files: {', '.join(env)}")
     
     created_sessions = []  # Track created sessions for attach
     
