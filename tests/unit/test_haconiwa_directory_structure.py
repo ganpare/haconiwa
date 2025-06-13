@@ -18,10 +18,22 @@ class TestHaconiwaDirectoryStructure:
     @pytest.fixture(autouse=True)
     def setup(self):
         """Set up test environment"""
+        # Reset TaskManager singleton before each test
+        TaskManager._instance = None
+        TaskManager._initialized = False
+        
         self.temp_dir = tempfile.mkdtemp()
         self.task_manager = TaskManager()
         yield
+        
+        # Clean up after test
         shutil.rmtree(self.temp_dir, ignore_errors=True)
+        
+        # Reset TaskManager singleton after each test to prevent side effects
+        if hasattr(self.task_manager, 'tasks'):
+            self.task_manager.tasks.clear()
+        TaskManager._instance = None
+        TaskManager._initialized = False
     
     def test_create_immediate_agent_assignment_log_structure(self):
         """Test that _create_immediate_agent_assignment_log creates correct directory structure"""
