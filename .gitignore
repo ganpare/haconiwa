@@ -50,6 +50,8 @@ Thumbs.db
 haconiwa-world/
 haconiwa-dev-world/
 haconiwa-dev-company/
+kamui-dev-company.yaml
+kamui-dev-world/
 
 # Test output and temporary directories
 test_output/
