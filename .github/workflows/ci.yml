@@ -56,6 +56,12 @@ jobs:
       - name: Run .haconiwa directory structure tests
         run: |
           pytest tests/unit/test_haconiwa_directory_structure.py -v
+      
+      - name: Run env file copy tests
+        run: |
+          # Test env file functionality
+          pytest tests/unit/test_env_file_copy.py -v
+          pytest tests/integration/test_apply_with_env_files.py -v
 
       - name: Run scenario tests
         run: |
@@ -65,6 +71,12 @@ jobs:
           
           echo "Testing minimal configuration"
           haconiwa apply -f test_cases/minimal_config.yaml --force-clone --no-attach
+          
+          # Test env file functionality
+          echo "Testing with env files"
+          echo "API_KEY=test123" > .env.test
+          echo "LOG_LEVEL=DEBUG" >> .env.test
+          haconiwa apply -f test_cases/minimal_config.yaml --env .env.test --dry-run --no-attach
 
       - name: Build package
         run: python -m build
