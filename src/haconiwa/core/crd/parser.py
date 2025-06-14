@@ -8,7 +8,7 @@ from typing import Union, List, Dict, Any
 from pydantic import ValidationError
 
 from .models import (
-    SpaceCRD, AgentCRD, TaskCRD, PathScanCRD, DatabaseCRD, CommandPolicyCRD, OrganizationCRD
+    SpaceCRD, AgentCRD, TaskCRD, PathScanCRD, DatabaseCRD, CommandPolicyCRD, OrganizationCRD, AICodeConfigCRD
 )
 
 
@@ -28,11 +28,12 @@ class CRDParser:
             "PathScan": PathScanCRD,
             "Database": DatabaseCRD,
             "CommandPolicy": CommandPolicyCRD,
-            "Organization": OrganizationCRD
+            "Organization": OrganizationCRD,
+            "AICodeConfig": AICodeConfigCRD
         }
         self.supported_api_versions = ["haconiwa.dev/v1"]
     
-    def parse_yaml(self, yaml_content: str) -> Union[SpaceCRD, AgentCRD, TaskCRD, PathScanCRD, DatabaseCRD, CommandPolicyCRD, OrganizationCRD]:
+    def parse_yaml(self, yaml_content: str) -> Union[SpaceCRD, AgentCRD, TaskCRD, PathScanCRD, DatabaseCRD, CommandPolicyCRD, OrganizationCRD, AICodeConfigCRD]:
         """Parse single YAML document to CRD object"""
         try:
             data = yaml.safe_load(yaml_content)
@@ -42,7 +43,7 @@ class CRDParser:
         except ValidationError as e:
             raise CRDValidationError(f"Validation error: {e}")
     
-    def parse_multi_yaml(self, yaml_content: str) -> List[Union[SpaceCRD, AgentCRD, TaskCRD, PathScanCRD, DatabaseCRD, CommandPolicyCRD, OrganizationCRD]]:
+    def parse_multi_yaml(self, yaml_content: str) -> List[Union[SpaceCRD, AgentCRD, TaskCRD, PathScanCRD, DatabaseCRD, CommandPolicyCRD, OrganizationCRD, AICodeConfigCRD]]:
         """Parse multi-document YAML to list of CRD objects"""
         try:
             documents = yaml.safe_load_all(yaml_content)
@@ -56,7 +57,7 @@ class CRDParser:
         except ValidationError as e:
             raise CRDValidationError(f"Validation error: {e}")
     
-    def parse_file(self, file_path: Path) -> Union[SpaceCRD, AgentCRD, TaskCRD, PathScanCRD, DatabaseCRD, CommandPolicyCRD, OrganizationCRD]:
+    def parse_file(self, file_path: Path) -> Union[SpaceCRD, AgentCRD, TaskCRD, PathScanCRD, DatabaseCRD, CommandPolicyCRD, OrganizationCRD, AICodeConfigCRD]:
         """Parse YAML file to CRD object"""
         try:
             with open(file_path, 'r', encoding='utf-8') as f:

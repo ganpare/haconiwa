@@ -179,6 +179,9 @@ class TaskManager:
                 # Copy .env files if they were specified
                 self._copy_env_files_to_worktree(worktree_path)
                 
+                # Copy AICodeConfig files if they were specified
+                self._copy_aicode_config_files_to_worktree(worktree_path, space_ref)
+                
                 return True
             else:
                 logger.error(f"Failed to create worktree: {result2.stderr}")
@@ -831,4 +834,61 @@ class TaskManager:
             
         except Exception as e:
             logger.error(f"Failed to create Claude Code settings: {e}")
-            return False 
+            return False
+    
+    def _copy_aicode_config_files_to_worktree(self, worktree_path: Path, space_ref: str) -> None:
+        """Copy AICodeConfig files to the worktree directory"""
+        try:
+            # Get AICodeConfig from the current applier instance
+            import sys
+            applier = getattr(sys.modules.get('__main__'), '_current_applier', None)
+            if not applier or not hasattr(applier, 'ai_code_configs'):
+                return
+            
+            # Get AICodeConfig for this company
+            ai_code_config = applier.ai_code_configs.get(space_ref)
+            if not ai_code_config:
+                logger.debug(f"No AICodeConfig found for company: {space_ref}")
+                return
+            
+            logger.info(f"📋 Applying AICodeConfig for company: {space_ref}")
+            
+            # Only handle claude provider for now
+            if ai_code_config.spec.provider != "claude":
+                return
+            
+            claude_config = ai_code_config.spec.claude
+            
+            # Copy settings.local.json to .claude directory
+            if claude_config.settingsFile:
+                settings_path = Path(claude_config.settingsFile)
+                if settings_path.exists():
+                    # Create .claude directory
+                    claude_dir = worktree_path / ".claude"
+                    claude_dir.mkdir(exist_ok=True)
+                    
+                    # Copy settings file
+                    target_path = claude_dir / "settings.local.json"
+                    logger.info(f"📋 Copying Claude settings: {settings_path} -> {target_path}")
+                    
+                    import shutil
+                    shutil.copy2(settings_path, target_path)
+                    logger.info(f"✅ Successfully copied settings.local.json")
+                else:
+                    logger.warning(f"Settings file not found: {settings_path}")
+            
+            # Copy CLAUDE.md to root of worktree
+            if claude_config.guidelinesFile:
+                guidelines_path = Path(claude_config.guidelinesFile)
+                if guidelines_path.exists():
+                    target_path = worktree_path / "CLAUDE.md"
+                    logger.info(f"📋 Copying Claude guidelines: {guidelines_path} -> {target_path}")
+                    
+                    import shutil
+                    shutil.copy2(guidelines_path, target_path)
+                    logger.info(f"✅ Successfully copied CLAUDE.md")
+                else:
+                    logger.warning(f"Guidelines file not found: {guidelines_path}")
+                    
+        except Exception as e:
+            logger.error(f"Error copying AICodeConfig files: {e}") 
