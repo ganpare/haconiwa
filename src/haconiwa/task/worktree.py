@@ -2,8 +2,12 @@ import shutil
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from git import Repo, GitCommandError
+from contextlib import suppress
+import logging
 
 from haconiwa.core.config import Config
+
+logger = logging.getLogger(__name__)
 
 
 class WorktreeManager:
@@ -21,12 +25,10 @@ class WorktreeManager:
 
     def _ensure_origin_sync(self):
         """Ensure the repository is synced with origin"""
-        try:
+        with suppress(GitCommandError):
             # Fetch latest from origin
             self.repo.git.fetch("origin")
-        except GitCommandError:
-            # Log but don't fail - repository might not have origin
-            pass
+            logger.debug("origin を fetch 済み")
 
     def create_worktree(self, task_id: str, branch_name: str, base_branch: Optional[str] = None) -> Path:
         worktree_path = self.worktree_base / task_id
@@ -40,8 +42,24 @@ class WorktreeManager:
         # Ensure we have latest from origin
         self._ensure_origin_sync()
         
-        # Create worktree with new branch based on origin branch
-        self.repo.git.worktree("add", str(worktree_path), "-b", branch_name, base_branch)
+        # Check if the base branch exists
+        try:
+            # Try to create worktree with origin branch first
+            self.repo.git.worktree("add", str(worktree_path), "-b", branch_name, base_branch)
+        except GitCommandError as e:
+            if "invalid reference" in str(e) or "not a valid object name" in str(e):
+                # If origin branch doesn't exist, try local branch
+                local_branch = self.default_branch if base_branch == f"origin/{self.default_branch}" else base_branch.replace("origin/", "")
+                logger.warning(f"Branch {base_branch} not found, trying local branch {local_branch}")
+                try:
+                    self.repo.git.worktree("add", str(worktree_path), "-b", branch_name, local_branch)
+                except GitCommandError:
+                    # If local branch also doesn't exist, create an orphan branch
+                    logger.warning(f"Local branch {local_branch} not found, creating orphan branch")
+                    self.repo.git.worktree("add", str(worktree_path), "-b", branch_name)
+            else:
+                raise
+        
         return worktree_path
 
     def remove_worktree(self, task_id: str, force: bool = False) -> None:

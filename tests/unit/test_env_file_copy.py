@@ -38,8 +38,7 @@ class TestEnvFileCopy(unittest.TestCase):
         worktree_path.mkdir(parents=True)
         
         # No env files specified
-        with patch('sys.modules', {'__main__': MagicMock(_current_applier=None)}):
-            self.task_manager._copy_env_files_to_worktree(worktree_path)
+        self.task_manager._copy_env_files_to_worktree(worktree_path, [])
             
         # No .env file should be created
         env_file = worktree_path / '.env'
@@ -58,12 +57,8 @@ DATABASE_URL=postgresql://localhost/test"""
         env_file_path = Path(self.temp_dir) / ".env.test"
         env_file_path.write_text(env_content)
         
-        # Mock applier with env files
-        mock_applier = MagicMock()
-        mock_applier.env_files = [str(env_file_path)]
-        
-        with patch('sys.modules', {'__main__': MagicMock(_current_applier=mock_applier)}):
-            self.task_manager._copy_env_files_to_worktree(worktree_path)
+        # Call with env files
+        self.task_manager._copy_env_files_to_worktree(worktree_path, [str(env_file_path)])
             
         # Check .env file was created
         target_env = worktree_path / '.env'
@@ -93,12 +88,8 @@ DATABASE_URL=postgresql://localhost/dev
 API_KEY=local_key
 """)
         
-        # Mock applier with env files
-        mock_applier = MagicMock()
-        mock_applier.env_files = [str(env_base), str(env_local)]
-        
-        with patch('sys.modules', {'__main__': MagicMock(_current_applier=mock_applier)}):
-            self.task_manager._copy_env_files_to_worktree(worktree_path)
+        # Call with env files
+        self.task_manager._copy_env_files_to_worktree(worktree_path, [str(env_base), str(env_local)])
             
         # Check merged content
         target_env = worktree_path / '.env'
@@ -127,11 +118,8 @@ LOG_LEVEL=DEBUG
 DATABASE_URL=postgresql://localhost/test
 """)
         
-        mock_applier = MagicMock()
-        mock_applier.env_files = [str(env_file)]
-        
-        with patch('sys.modules', {'__main__': MagicMock(_current_applier=mock_applier)}):
-            self.task_manager._copy_env_files_to_worktree(worktree_path)
+        # Call with env files
+        self.task_manager._copy_env_files_to_worktree(worktree_path, [str(env_file)])
             
         target_env = worktree_path / '.env'
         content = target_env.read_text()
@@ -154,11 +142,8 @@ UNQUOTED=simple_value
 SPACE_VALUE=needs quotes here
 """)
         
-        mock_applier = MagicMock()
-        mock_applier.env_files = [str(env_file)]
-        
-        with patch('sys.modules', {'__main__': MagicMock(_current_applier=mock_applier)}):
-            self.task_manager._copy_env_files_to_worktree(worktree_path)
+        # Call with env files
+        self.task_manager._copy_env_files_to_worktree(worktree_path, [str(env_file)])
             
         target_env = worktree_path / '.env'
         content = target_env.read_text()
@@ -177,11 +162,8 @@ SPACE_VALUE=needs quotes here
         env_file = Path(self.temp_dir) / ".env"
         env_file.write_text("TEST=value")
         
-        mock_applier = MagicMock()
-        mock_applier.env_files = [str(env_file)]
-        
-        with patch('sys.modules', {'__main__': MagicMock(_current_applier=mock_applier)}):
-            self.task_manager._copy_env_files_to_worktree(worktree_path)
+        # Call with env files
+        self.task_manager._copy_env_files_to_worktree(worktree_path, [str(env_file)])
             
         gitignore = worktree_path / '.gitignore'
         self.assertTrue(gitignore.exists())
@@ -203,11 +185,8 @@ SPACE_VALUE=needs quotes here
         env_file = Path(self.temp_dir) / ".env"
         env_file.write_text("TEST=value")
         
-        mock_applier = MagicMock()
-        mock_applier.env_files = [str(env_file)]
-        
-        with patch('sys.modules', {'__main__': MagicMock(_current_applier=mock_applier)}):
-            self.task_manager._copy_env_files_to_worktree(worktree_path)
+        # Call with env files
+        self.task_manager._copy_env_files_to_worktree(worktree_path, [str(env_file)])
             
         content = gitignore.read_text()
         # Original content preserved
@@ -222,12 +201,8 @@ SPACE_VALUE=needs quotes here
         worktree_path = Path(self.temp_dir) / "test_worktree"
         worktree_path.mkdir(parents=True)
         
-        mock_applier = MagicMock()
-        mock_applier.env_files = ["/nonexistent/.env"]
-        
         # Should not raise exception
-        with patch('sys.modules', {'__main__': MagicMock(_current_applier=mock_applier)}):
-            self.task_manager._copy_env_files_to_worktree(worktree_path)
+        self.task_manager._copy_env_files_to_worktree(worktree_path, ["/nonexistent/.env"])
             
         # No .env file should be created
         env_file = worktree_path / '.env'

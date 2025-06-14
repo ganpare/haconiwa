@@ -754,6 +754,19 @@ class CRDApplier:
             "company_agent_defaults": company_agent_defaults
         }
         
+        # Add env_files from task spec or from applier instance
+        task_env_files = crd.spec.envFiles if hasattr(crd.spec, 'envFiles') and crd.spec.envFiles else []
+        applier_env_files = self.env_files if self.env_files else []
+        
+        # Combine both lists, removing duplicates while preserving order
+        combined_env_files = list(task_env_files)
+        for file in applier_env_files:
+            if file not in combined_env_files:
+                combined_env_files.append(file)
+        
+        if combined_env_files:
+            task_config["env_files"] = combined_env_files
+        
         # Apply task configuration
         result = task_manager.create_task(task_config)
         
