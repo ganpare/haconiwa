@@ -62,6 +62,11 @@ jobs:
           # Test env file functionality
           pytest tests/unit/test_env_file_copy.py -v
           pytest tests/integration/test_apply_with_env_files.py -v
+      
+      - name: Run task assignment fix tests
+        run: |
+          # Test task assignment json location fix
+          pytest tests/integration/test_task_assignment_fix.py -v
 
       - name: Run scenario tests
         run: |

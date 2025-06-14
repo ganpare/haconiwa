@@ -828,7 +828,7 @@ class SpaceManager:
             return mapping["agent_id"]
         
         # Log warning if agent_id is missing
-        logger.warning(f"No agent_id in mapping, falling back to generation. Mapping: {mapping}")
+        logger.debug(f"No agent_id in mapping, falling back to generation. Mapping: {mapping}")
         
         # Check if desk_id already contains a well-formed agent ID
         desk_id = mapping.get("desk_id", "")
@@ -1173,9 +1173,9 @@ class SpaceManager:
                 return str(idx)
         
         # Fallback: Handle specific room names
-        if room_id == "room-01" or room_id == "room-frontend":
+        if room_id == "room-01":
             return "0"
-        elif room_id == "room-02" or room_id == "room-backend":
+        elif room_id == "room-02":
             return "1"
         elif room_id == "room-executive":
             return "0"  # Executive room is the first window
