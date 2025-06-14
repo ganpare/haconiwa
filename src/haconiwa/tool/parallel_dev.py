@@ -115,11 +115,28 @@ class ParallelDevManager:
             allowed_tools = ["Read", "Write", "Edit", "MultiEdit"]
         
         # Create Claude Code options
-        options = ClaudeCodeOptions(
-            max_turns=5,
-            cwd=Path.cwd(),
-            allowed_tools=allowed_tools
-        )
+        options_dict = {
+            "max_turns": 5,
+            "cwd": Path.cwd(),
+            "allowed_tools": allowed_tools
+        }
+        
+        # Add permission_mode if available in SDK
+        try:
+            from claude_code_sdk import PermissionMode
+            if permission_mode:
+                # Map string values to PermissionMode enum if available
+                mode_map = {
+                    "auto": PermissionMode.AUTO if hasattr(PermissionMode, 'AUTO') else None,
+                    "confirm": PermissionMode.CONFIRM if hasattr(PermissionMode, 'CONFIRM') else None,
+                    "confirmEach": PermissionMode.CONFIRM_EACH if hasattr(PermissionMode, 'CONFIRM_EACH') else None,
+                }
+                if permission_mode in mode_map and mode_map[permission_mode]:
+                    options_dict["permission_mode"] = mode_map[permission_mode]
+        except ImportError:
+            pass
+        
+        options = ClaudeCodeOptions(**options_dict)
         
         # Create semaphore for concurrency control
         semaphore = asyncio.Semaphore(max_concurrent)

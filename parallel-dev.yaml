@@ -18,9 +18,9 @@ options:
   max_concurrent: 3
   timeout: 90
   allowed_tools:
-  - Read
-  - Write
-  - Edit
-  - MultiEdit
+    - Read
+    - Write
+    - Edit
+    - MultiEdit
   permission_mode: confirmEach
   output_dir: ./parallel-dev-results

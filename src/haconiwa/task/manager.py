@@ -4,7 +4,7 @@ Task Manager for Haconiwa v1.0
 
 import logging
 import subprocess
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ class TaskManager:
             
             # Create worktree if requested
             if worktree and space_ref:
-                success = self._create_worktree(name, branch, space_ref)
+                success = self._create_worktree(name, branch, space_ref, config)
                 if not success:
                     logger.warning(f"Failed to create worktree for task {name}, but continuing")
             
@@ -84,7 +84,7 @@ class TaskManager:
             logger.error(f"Failed to create task: {e}")
             return False
     
-    def _create_worktree(self, task_name: str, branch: str, space_ref: str) -> bool:
+    def _create_worktree(self, task_name: str, branch: str, space_ref: str, config: Dict[str, Any]) -> bool:
         """Create Git worktree in tasks directory"""
         try:
             # Find space base path (assuming task_name follows naming convention)
@@ -177,7 +177,9 @@ class TaskManager:
                 logger.info(f"✅ Successfully created worktree: {worktree_path}")
                 
                 # Copy .env files if they were specified
-                self._copy_env_files_to_worktree(worktree_path)
+                env_files = config.get('env_files', [])
+                if env_files:
+                    self._copy_env_files_to_worktree(worktree_path, env_files)
                 
                 return True
             else:
@@ -188,16 +190,11 @@ class TaskManager:
             logger.error(f"Error creating worktree: {e}")
             return False
     
-    def _copy_env_files_to_worktree(self, worktree_path: Path) -> None:
+    def _copy_env_files_to_worktree(self, worktree_path: Path, env_files: List[str]) -> None:
         """Copy .env files to the worktree directory"""
         try:
-            # Get env files from the current applier instance
-            import sys
-            applier = getattr(sys.modules.get('__main__'), '_current_applier', None)
-            if not applier or not hasattr(applier, 'env_files') or not applier.env_files:
+            if not env_files:
                 return
-            
-            env_files = applier.env_files
             logger.info(f"📋 Copying {len(env_files)} environment file(s) to worktree")
             
             # Read and merge all env files
@@ -219,9 +216,9 @@ class TaskManager:
                         if '=' in line:
                             key, value = line.split('=', 1)
                             # Remove quotes if present
-                            if value.startswith('"') and value.endswith('"'):
-                                value = value[1:-1]
-                            elif value.startswith("'") and value.endswith("'"):
+                            if (value.startswith('"') and value.endswith('"')) or (
+                                value.startswith("'") and value.endswith("'")
+                            ):
                                 value = value[1:-1]
                             merged_env[key] = value
             

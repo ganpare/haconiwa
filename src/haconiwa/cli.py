@@ -117,6 +117,10 @@ def apply(
     parser = CRDParser()
     applier = CRDApplier()
     
+    # Register applier in __main__ for TaskManager to access
+    import __main__
+    setattr(__main__, "_current_applier", applier)
+    
     # Set force_clone flag in applier
     applier.force_clone = force_clone
     
