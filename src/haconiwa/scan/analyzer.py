@@ -54,7 +54,7 @@ class ModelAnalyzer:
         }
         
         # Scan directory structure
-        for root, dirs, files in self.base_path.walk():
+        for root, dirs, files in os.walk(self.base_path):
             root_path = Path(root)
             
             # Check if this is a model directory
@@ -199,7 +199,8 @@ class ModelAnalyzer:
                         elif file.endswith(('.yaml', '.yml')):
                             with open(file_path, 'r') as f:
                                 model_info['config'] = yaml.safe_load(f)
-                    except:
+                    except (json.JSONDecodeError, yaml.YAMLError, OSError, UnicodeDecodeError):
+                        # 読み取り失敗は無視して次へ
                         pass
             
             except (PermissionError, OSError):

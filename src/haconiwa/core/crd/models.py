@@ -224,6 +224,7 @@ class TaskSpec(BaseModel):
     spaceRef: Optional[str] = Field(None, description="Reference to Space")
     description: Optional[str] = Field(None, description="Task description")
     agentConfig: Optional[AgentConfig] = Field(None, description="Agent configuration for this task")
+    envFiles: Optional[List[str]] = Field(None, description="List of environment files to copy to task worktree")
     
     @field_validator('branch')
     @classmethod

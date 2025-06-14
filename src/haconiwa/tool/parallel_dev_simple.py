@@ -49,11 +49,15 @@ class SimpleParallelDevManager:
         """Process a single file using Claude CLI directly."""
         start_time = datetime.now()
         
-        # Construct command - use full path to claude
-        claude_path = "/Users/motokidaisuke/.claude/local/claude"
+        # Find claude executable dynamically
+        import os
+        import shutil
+        
+        claude_path = os.getenv("CLAUDE_CLI_PATH") or shutil.which("claude")
+        if not claude_path:
+            raise FileNotFoundError("claude CLI not found. Please set CLAUDE_CLI_PATH environment variable or ensure 'claude' is in your PATH.")
         
         # Get absolute path
-        import os
         abs_file_path = os.path.abspath(file_path)
         
         cmd = [

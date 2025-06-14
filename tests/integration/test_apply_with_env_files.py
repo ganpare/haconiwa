@@ -31,6 +31,7 @@ metadata:
   name: test-org
 spec:
   companyName: "Test Company"
+  industry: "Technology"
   basePath: "./test-company"
   hierarchy:
     departments:
@@ -48,10 +49,13 @@ metadata:
 spec:
   nations:
   - id: jp
+    name: "Japan"
     cities:
     - id: tokyo
+      name: "Tokyo"
       villages:
       - id: test-village
+        name: "Test Village"
         companies:
         - name: test-company
           grid: "2x2"
@@ -60,6 +64,7 @@ spec:
           gitRepo:
             url: "https://github.com/test/test.git"
             defaultBranch: "main"
+            auth: "ssh"
 ---
 apiVersion: haconiwa.dev/v1
 kind: Task
@@ -94,13 +99,15 @@ DATABASE_URL=postgresql://localhost/test
         os.chdir(self.original_cwd)
         shutil.rmtree(self.temp_dir, ignore_errors=True)
         
-    @patch('haconiwa.space.manager.SpaceManager.create_space')
+    @patch('haconiwa.organization.manager.OrganizationManager.create_organization')
+    @patch('haconiwa.space.manager.SpaceManager.create_multiroom_session')
     @patch('haconiwa.task.manager.TaskManager._create_worktree')
     @patch('subprocess.run')
-    def test_apply_with_single_env_file(self, mock_run, mock_create_worktree, mock_create_space):
+    def test_apply_with_single_env_file(self, mock_run, mock_create_worktree, mock_create_multiroom_session, mock_create_organization):
         """Test apply command with single env file"""
         # Mock successful operations
-        mock_create_space.return_value = True
+        mock_create_organization.return_value = True
+        mock_create_multiroom_session.return_value = True
         mock_create_worktree.return_value = True
         mock_run.return_value = MagicMock(returncode=0)
         
@@ -112,12 +119,15 @@ DATABASE_URL=postgresql://localhost/test
         applier = CRDApplier()
         applier.env_files = [str(self.env_base)]
         
-        # Mock the global applier reference
-        with patch('sys.modules', {'__main__': MagicMock(_current_applier=applier)}):
-            parser = CRDParser()
-            crds = parser.parse_multi_yaml(self.yaml_content)
-            
-            # Apply CRDs
+        # Parse CRDs
+        parser = CRDParser()
+        crds = parser.parse_multi_yaml(self.yaml_content)
+        
+        # Apply CRDs with Rich output disabled and sys.modules patched
+        import sys
+        os.environ['NO_COLOR'] = '1'  # Disable color output
+        with patch('rich.console.Console'), \
+             patch.dict('sys.modules', {'__main__': MagicMock(_current_applier=applier)}):
             results = applier.apply_multiple(crds)
             
         # Check that env file was created in worktree
@@ -127,14 +137,16 @@ DATABASE_URL=postgresql://localhost/test
             self.assertIn("API_KEY=base_key", content)
             self.assertIn("LOG_LEVEL=INFO", content)
             
-    @patch('haconiwa.space.manager.SpaceManager.create_space')
-    @patch('haconiwa.task.manager.TaskManager._create_worktree')
+    @patch('haconiwa.legal.framework.HierarchicalLegalFramework.create_framework_from_yaml')
+    @patch('haconiwa.organization.manager.OrganizationManager.create_organization')
+    @patch('haconiwa.space.manager.SpaceManager.create_multiroom_session')
     @patch('subprocess.run')
-    def test_apply_with_multiple_env_files(self, mock_run, mock_create_worktree, mock_create_space):
+    def test_apply_with_multiple_env_files(self, mock_run, mock_create_multiroom_session, mock_create_organization, mock_legal_framework):
         """Test apply command with multiple env files"""
         # Mock successful operations
-        mock_create_space.return_value = True
-        mock_create_worktree.return_value = True
+        mock_legal_framework.return_value = True
+        mock_create_organization.return_value = True
+        mock_create_multiroom_session.return_value = True
         mock_run.return_value = MagicMock(returncode=0)
         
         # Create mock worktree directory
@@ -145,24 +157,39 @@ DATABASE_URL=postgresql://localhost/test
         applier = CRDApplier()
         applier.env_files = [str(self.env_base), str(self.env_local)]
         
-        # Mock the global applier reference
-        with patch('sys.modules', {'__main__': MagicMock(_current_applier=applier)}):
-            parser = CRDParser()
-            crds = parser.parse_multi_yaml(self.yaml_content)
+        # Parse CRDs
+        parser = CRDParser()
+        crds = parser.parse_multi_yaml(self.yaml_content)
+        
+        # Create a side effect for _create_worktree that copies env files
+        def mock_create_worktree_with_env_copy(task_name, branch, space_ref, config):
+            # Call the env file copy logic  
+            env_files = config.get('env_files', [])
+            if env_files:
+                from haconiwa.task.manager import TaskManager
+                tm = TaskManager()
+                tm._copy_env_files_to_worktree(worktree_path, env_files)
+            return True
             
-            # Apply CRDs
+        # Apply CRDs with Rich output disabled and sys.modules patched
+        import sys
+        os.environ['NO_COLOR'] = '1'  # Disable color output
+        with patch('rich.console.Console'), \
+             patch.dict('sys.modules', {'__main__': MagicMock(_current_applier=applier)}), \
+             patch('haconiwa.task.manager.TaskManager._create_worktree', side_effect=mock_create_worktree_with_env_copy):
             results = applier.apply_multiple(crds)
             
         # Check merged env file
         env_file = worktree_path / '.env'
-        if env_file.exists():
-            content = env_file.read_text()
-            # Local should override base
-            self.assertIn("LOG_LEVEL=DEBUG", content)
-            self.assertNotIn("LOG_LEVEL=INFO", content)
-            # Both files' unique values preserved
-            self.assertIn("API_KEY=base_key", content)
-            self.assertIn("DATABASE_URL=postgresql://localhost/test", content)
+        self.assertTrue(env_file.exists(), f"Expected .env file at {env_file}")
+        
+        content = env_file.read_text()
+        # Local should override base
+        self.assertIn("LOG_LEVEL=DEBUG", content)
+        self.assertNotIn("LOG_LEVEL=INFO", content)
+        # Both files' unique values preserved
+        self.assertIn("API_KEY=base_key", content)
+        self.assertIn("DATABASE_URL=postgresql://localhost/test", content)
             
     def test_cli_env_flag_parsing(self):
         """Test that CLI correctly parses --env flags"""

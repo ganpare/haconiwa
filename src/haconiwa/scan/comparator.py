@@ -50,6 +50,9 @@ class ModelComparator:
         
         return comparison['results']
     
+    # Alias for CLI compatibility
+    compare_models = compare
+    
     def _load_model_info(self, model_name: str) -> Optional[Dict[str, Any]]:
         """Load information about a specific model"""
         from .scanner import ModelScanner
@@ -80,7 +83,7 @@ class ModelComparator:
                     try:
                         with open(file_path, 'r') as f:
                             model_info['config'] = json.load(f)
-                    except:
+                    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
                         pass
         
         return model_info

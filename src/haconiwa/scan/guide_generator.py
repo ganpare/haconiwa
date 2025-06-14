@@ -6,7 +6,7 @@ guides for specific AI models based on discovered information.
 """
 
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 import json
 from datetime import datetime
 
@@ -73,7 +73,7 @@ class GuideGenerator:
                 if file_path.name in ['config.json', 'model_config.json']:
                     try:
                         model_info['config'] = json.loads(file_info.get('content', '{}'))
-                    except:
+                    except (json.JSONDecodeError, TypeError):
                         pass
                 
                 # Extract README

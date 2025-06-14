@@ -7,9 +7,7 @@ including text, JSON, YAML, and summary formats.
 
 import json
 import yaml
-from typing import Any, Dict, List, Union
-from datetime import datetime
-from pathlib import Path
+from typing import Any, Dict, List
 
 class OutputFormatter:
     """Formats scan results for different output types"""

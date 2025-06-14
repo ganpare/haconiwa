@@ -38,9 +38,10 @@ rg "function_name" src/ -A5 -B5
 ## Creating Pull Requests
 
 When creating a pull request, always open it in the web browser:
-```bash
+
 gh pr create --base <target-branch> --title "title" --body "description"
 gh pr view <PR-number> --web  # Automatically open in browser
+
 ```
 
 ## Lint and Type Check Commands

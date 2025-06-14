@@ -9,10 +9,8 @@ and directory traversal with filtering.
 import os
 import re
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Set, Tuple
+from typing import List, Dict, Any, Optional
 import fnmatch
-import json
-import yaml
 from collections import defaultdict
 
 class ModelScanner:
@@ -185,7 +183,7 @@ class ModelScanner:
                         results['matches'].append(match_info)
                         results['total_matches'] += 1
             
-            except Exception as e:
+            except Exception:
                 # Skip files that can't be read
                 continue
         
@@ -263,7 +261,7 @@ class ModelScanner:
         if include_content and info['size'] < 1024 * 1024:  # Max 1MB
             try:
                 info['content'] = file_path.read_text(encoding='utf-8', errors='ignore')
-            except:
+            except (OSError, UnicodeDecodeError):
                 info['content'] = None
         
         return info
