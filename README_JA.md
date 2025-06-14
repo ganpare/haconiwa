@@ -389,6 +389,30 @@ spec:
 - 実行時の権限チェック機能
 - エージェントへの自動プロンプト注入
 
+## 🚀 コアコマンド
+
+### 🔧 コマンドドキュメント
+
+**詳細な使用方法と例を含む完全ガイド:**
+
+- **[📋 apply](docs/commands/apply.md)** - .envファイル配布による環境変数管理
+- **[🔍 scan](docs/commands/scan.md)** - AIモデル検索・分析・並列設定生成
+- **[⚡ tool parallel-dev](docs/commands/tool-parallel-dev.md)** - Claude Code SDK並列実行
+
+### クイックコマンド概要
+
+```bash
+# 環境変数付きでYAML適用
+haconiwa apply -f config.yaml --env .env.base --env .env.local
+
+# AIモデル検索と設定生成
+haconiwa scan model gpt-4
+haconiwa scan generate-parallel-config --action add_tests
+
+# Claude Code SDKで並列ファイル編集
+haconiwa tool parallel-dev claude -f file1.py,file2.py -p "prompt1","prompt2" -m 5
+```
+
 ## 🚀 今すぐ使える機能
 
 ### apply yamlパターン（v1.0 新機能）

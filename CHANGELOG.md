@@ -9,55 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.0] - 2025-06-13
 
-### Added - Pull Request Implementation Summary
+### 🔧 機能追加（feat）
 
-#### 🎯 **PR #3: AI Strategy Roadmap** (`strategy/ai-roadmap`)
-- 🤖 **AI戦略ロードマップ策定** - Haconowaプラットフォームの包括的AI戦略
-- 📊 **市場分析・技術ロードマップ** - 競合分析と投資計画の策定
+#### **Git worktree 用の自動 `.env` ファイルコピー機能を追加**
+- 📋 **apply コマンドの --env フラグ** - [詳細ガイド](docs/commands/apply.md)
+- 🔄 **自動環境変数配布** - 各タスクのgit worktreeディレクトリに.envファイルを自動コピー
+- 🏗️ **環境別設定対応** - 複数の.envファイルマージ機能
 
-#### 🧠 **PR #4: AI Core Engine** (`ai/core-engine`)
-- 🔧 **Claude Code SDK統合** - Claude APIを使った協調開発支援機能
-- ⚡ **並列処理エンジン** - 最大10ファイルの同時編集による高速開発
-- 📚 **AI開発ドキュメント** - [Claude Code SDK Documentation](docs/ai/core-engine/claude_code_sdk_documentation.md)
-- 🚀 **並列処理ガイド** - [Claude Code 並列処理ガイド](docs/ai/core-engine/claude_code_parallel_processing.md)
+#### **AIモデル検索と並列設定生成を含む `scan` コマンドを追加**
+- 🔍 **scan コマンド完全実装** - [詳細ガイド](docs/commands/scan.md)
+- 📊 **AIモデル検索・分析・比較・ガイド生成機能**
+- 📝 **並列設定YAML自動生成** - `scan generate-parallel-config`
+- 🎯 **プロジェクト内モデル管理** - プレフィックス自動削除、カテゴリ分類
 
-#### 🏗️ **PR #5: Architecture System Review** (`architecture/system-review`)
-- 📋 **CRDベースアーキテクチャ** - Organization、Space、Task、Law CRDの統合
-- 🏢 **階層的組織管理** - 複数組織の階層管理とロール割り当て機能
-- ⚖️ **法的フレームワーク** - プロジェクト管理とコンプライアンス機能
+#### **Claude Code SDK の並列実行機能を追加**
+- ⚡ **tool parallel-dev コマンド** - [詳細ガイド](docs/commands/tool-parallel-dev.md)
+- 🚀 **最大10ファイル並列編集** - asyncio.gatherによる高速並列処理
+- 🎯 **セマフォ制御** - 同時実行数制限でAPI負荷管理
+- 📊 **リアルタイム進捗表示** - 処理状況の可視化
 
-#### 📈 **PR #6: Product Roadmap 2025** (`product/roadmap-2025`)
-- 🗺️ **プロダクトロードマップ策定** - 2025年の製品開発計画
-- 🎯 **機能優先度整理** - ユーザーニーズに基づく機能開発順序
-- 📊 **KPI設定** - 成果測定のための指標策定
+### 🛠️ 修正（fix）
 
-#### ⚡ **PR #7: Backend Performance Optimization** (`backend/performance-opt`)
-- 🔧 **並列開発ツール** - tool parallel-devコマンドの設計・実装
-- 📈 **性能最適化** - バックエンド処理の高速化とスケーラビリティ向上
-- 🛠️ **コマンド設計** - [Claude 並列コマンド設計](docs/backend/performance/claude_parallel_command_design.md)
-- 🔨 **実装設計** - [Tool Parallel-Dev コマンド設計](docs/backend/performance/tool_parallel_dev_command_design.md)
+#### **`.haconiwa` ディレクトリ構造を改善し、マージコンフリクトを防止**
+- 🗂️ **統一ディレクトリ構造** - agent_assignment.jsonのパス統一
+- 🔧 **room-window動的マッピング** - ハードコーディング除去による柔軟性向上
+- 🧹 **コンフリクト回避** - 複数ブランチ間での構造一貫性確保
 
-### Enhanced
-- 🔍 **scanコマンド完全実装** - AIモデル検索・分析・比較・ガイド生成機能
-- 📊 **リアルタイムモニタリング** - tmuxマルチエージェント環境の監視機能
-- 📋 **環境変数管理システム** - .envファイル自動コピー機能
-- 🔧 **space管理機能強化** - マルチルーム、32ペイン対応
-- 🧪 **テストカバレッジ拡充** - 統合テスト、ユニットテスト、シナリオテスト
-- 📊 **監視システム強化** - 日本語UI、CPU使用率表示、エージェント状態判定
-
-### Documentation
-- 📝 **包括的ドキュメント体系化** - [README追加内容](docs/readme_additions.md)
-- 📚 **機能別ガイド整理** - プルリクエスト別の設計ドキュメント
-- 🔗 **ドキュメントリンク体系** - 機能とドキュメントの対応関係明確化
-- 📦 **Claude Code設定** - プロジェクト固有の設定ファイル追加
-
-### Technical
-- 🎯 **54ファイル変更** - 14,432行追加、592行削除の大規模リファクタリング
-- 🏗️ **Core Applier機能拡張** - YAML適用とCRD処理の大幅改善
-- 📋 **CRDモデル拡充** - 6種類のCRD対応とパーサー機能強化
-- 🔧 **Task Manager改良** - ワークツリー管理とブランチ戦略の最適化
-- 🔧 **バージョン管理改善** - PyPIアップロード問題の対処法追加
-- 🧹 **コードクリーンアップ** - 不要ファイル削除、構造最適化
+#### **Git worktree が `origin/branch` から作成されるように修正**
+- 🌿 **ブランチ作成改善** - defaultBranchからの正しいブランチ作成
+- 🔗 **リモート追跡強化** - origin参照による一貫性確保
+- ⚡ **ワークフロー最適化** - タスク間の独立性向上
 
 ## [0.5.0] - 2025-06-13
 
