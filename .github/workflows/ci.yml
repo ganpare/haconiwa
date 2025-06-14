@@ -67,6 +67,11 @@ jobs:
         run: |
           # Test task assignment json location fix
           pytest tests/integration/test_task_assignment_fix.py -v
+      
+      - name: Run AICodeConfig tests
+        run: |
+          # Test AICodeConfig functionality
+          pytest tests/unit/test_aicode_config.py -v
 
       - name: Run scenario tests
         run: |

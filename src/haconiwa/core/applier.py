@@ -8,7 +8,7 @@ import logging
 import sys
 
 from .crd.models import (
-    SpaceCRD, AgentCRD, TaskCRD, PathScanCRD, DatabaseCRD, CommandPolicyCRD, OrganizationCRD
+    SpaceCRD, AgentCRD, TaskCRD, PathScanCRD, DatabaseCRD, CommandPolicyCRD, OrganizationCRD, AICodeConfigCRD
 )
 
 logger = logging.getLogger(__name__)
@@ -26,8 +26,9 @@ class CRDApplier:
         self.applied_resources = {}
         self.force_clone = False  # Default to False
         self.env_files = []  # List of environment files to copy
+        self.ai_code_configs = {}  # AICodeConfig by targetCompany
     
-    def apply(self, crd: Union[SpaceCRD, AgentCRD, TaskCRD, PathScanCRD, DatabaseCRD, CommandPolicyCRD, OrganizationCRD]) -> bool:
+    def apply(self, crd: Union[SpaceCRD, AgentCRD, TaskCRD, PathScanCRD, DatabaseCRD, CommandPolicyCRD, OrganizationCRD, AICodeConfigCRD]) -> bool:
         """Apply CRD to the system"""
         try:
             if isinstance(crd, SpaceCRD):
@@ -44,13 +45,15 @@ class CRDApplier:
                 return self._apply_commandpolicy_crd(crd)
             elif isinstance(crd, OrganizationCRD):
                 return self._apply_organization_crd(crd)
+            elif isinstance(crd, AICodeConfigCRD):
+                return self._apply_aicode_config_crd(crd)
             else:
                 raise CRDApplierError(f"Unknown CRD type: {type(crd)}")
         except Exception as e:
             logger.error(f"Failed to apply CRD {crd.metadata.name}: {e}")
             raise CRDApplierError(f"Failed to apply CRD {crd.metadata.name}: {e}")
     
-    def apply_multiple(self, crds: List[Union[SpaceCRD, AgentCRD, TaskCRD, PathScanCRD, DatabaseCRD, CommandPolicyCRD, OrganizationCRD]]) -> List[bool]:
+    def apply_multiple(self, crds: List[Union[SpaceCRD, AgentCRD, TaskCRD, PathScanCRD, DatabaseCRD, CommandPolicyCRD, OrganizationCRD, AICodeConfigCRD]]) -> List[bool]:
         """Apply multiple CRDs to the system"""
         from rich.console import Console
         from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
@@ -1041,4 +1044,26 @@ class CRDApplier:
             del self.applied_resources[resource_key]
             logger.info(f"Removed resource: {resource_key}")
             return True
-        return False 
+        return False
+    
+    def _apply_aicode_config_crd(self, crd: AICodeConfigCRD) -> bool:
+        """Apply AICodeConfig CRD"""
+        logger.info(f"Applying AICodeConfig CRD: {crd.metadata.name}")
+        
+        # Store CRD for later reference
+        self.applied_resources[f"AICodeConfig/{crd.metadata.name}"] = crd
+        
+        # Only support claude provider for now
+        if crd.spec.provider != "claude":
+            logger.warning(f"Provider {crd.spec.provider} not supported yet. Only 'claude' is supported.")
+            return False
+        
+        # Store AICodeConfig for the target company
+        target_company = crd.spec.targetCompany
+        self.ai_code_configs[target_company] = crd
+        
+        logger.info(f"AICodeConfig registered for company: {target_company}")
+        logger.info(f"  Settings file: {crd.spec.claude.settingsFile}")
+        logger.info(f"  Guidelines file: {crd.spec.claude.guidelinesFile}")
+        
+        return True 

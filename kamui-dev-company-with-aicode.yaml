@@ -1,11 +1,11 @@
 apiVersion: haconiwa.dev/v1
 kind: Organization
 metadata:
-  name: haconiwa-dev-company-org
+  name: kamui-dev-company-org
 spec:
-  companyName: "Haconiwa Development Company"
+  companyName: "Kamui Development Company"
   industry: "AI Development Tools & Infrastructure"
-  basePath: "./haconiwa-dev-company"
+  basePath: "./kamui-dev-company"
   hierarchy:
     departments:
     - id: "executive"
@@ -231,19 +231,19 @@ spec:
 apiVersion: haconiwa.dev/v1
 kind: AICodeConfig
 metadata:
-  name: haconiwa-claude-config
+  name: kamui-claude-config
 spec:
   provider: "claude"
   claude:
     settingsFile: "./claude-settings/settings.local.json"
     guidelinesFile: "./claude-settings/CLAUDE.md"
-  targetCompany: "haconiwa-dev-company"
+  targetCompany: "kamui-dev-company"
 
 ---
 apiVersion: haconiwa.dev/v1
 kind: Space
 metadata:
-  name: haconiwa-dev-world
+  name: kamui-dev-world
 spec:
   nations:
   - id: jp
@@ -252,13 +252,13 @@ spec:
     - id: tokyo
       name: Tokyo
       villages:
-      - id: haconiwa-village
-        name: "Haconiwa Village"
+      - id: kamui-village
+        name: "Kamui Village"
         companies:
-        - name: haconiwa-dev-company
+        - name: kamui-dev-company
           grid: "8x4"
-          basePath: "./haconiwa-dev-world"
-          organizationRef: "haconiwa-dev-company-org"
+          basePath: "./kamui-dev-world"
+          organizationRef: "kamui-dev-company-org"
           agentDefaults:
             type: "claude-code"
             permissions:
@@ -266,7 +266,7 @@ spec:
                 - "Bash(python -m pytest)"
                 - "Bash(python -m ruff)"
                 - "Bash(python -m mypy)"
-                - "Bash(haconiwa *)"
+                - "Bash(kamui *)"
                 - "Read(pyproject.toml)"
                 - "Read(src/**/*.py)"
                 - "Write(src/**/*.py)"
@@ -275,15 +275,15 @@ spec:
                 - "Bash(rm -rf /)"
                 - "Bash(curl:*)"
             env:
-              HACONIWA_DEV_MODE: "1"
+              KAMUI_DEV_MODE: "1"
               PYTHONPATH: "./src"
           gitRepo:
-            url: "https://github.com/dai-motoki/haconiwa"
-            defaultBranch: "dev"
+            url: "https://github.com/KandaQuantum1123/kamui_v3"
+            defaultBranch: "main"
             auth: "https"
           buildings:
           - id: "hq-tower"
-            name: "Haconiwa HQ Tower"
+            name: "Kamui HQ Tower"
             floors:
             - id: "executive-floor"
               name: "Executive Floor"
@@ -307,7 +307,7 @@ spec:
   description: |
     ## AI Strategy Development
     
-    Develop comprehensive AI strategy for Haconiwa platform.
+    Develop comprehensive AI strategy for Kamui platform.
     
     ### Requirements:
     - Market analysis
@@ -315,7 +315,7 @@ spec:
     - Competitive analysis
     - Investment planning
   assignee: "ceo-motoki"
-  spaceRef: "haconiwa-dev-company"
+  spaceRef: "kamui-dev-company"
   priority: "high"
   worktree: true
   branch: "strategy/ai-roadmap"
@@ -339,7 +339,7 @@ spec:
     - Scalability planning
     - Technology stack evaluation
   assignee: "cto-yamada"
-  spaceRef: "haconiwa-dev-company"
+  spaceRef: "kamui-dev-company"
   priority: "high"
   worktree: true
   branch: "architecture/system-review"
@@ -363,7 +363,7 @@ spec:
     - Investment planning
     - Financial reporting
   assignee: "cfo-tanaka"
-  spaceRef: "haconiwa-dev-company"
+  spaceRef: "kamui-dev-company"
   priority: "high"
   worktree: true
   branch: "finance/planning-model"
@@ -387,7 +387,7 @@ spec:
     - Market requirements
     - Timeline planning
   assignee: "vpp-suzuki"
-  spaceRef: "haconiwa-dev-company"
+  spaceRef: "kamui-dev-company"
   priority: "high"
   worktree: true
   branch: "product/roadmap-2025"
@@ -411,7 +411,7 @@ spec:
     - Performance optimization
     - Memory management
   assignee: "ai-lead-nakamura"
-  spaceRef: "haconiwa-dev-company"
+  spaceRef: "kamui-dev-company"
   priority: "high"
   worktree: true
   branch: "ai/core-engine"
@@ -435,7 +435,7 @@ spec:
     - Caching strategy
     - Load balancing
   assignee: "backend-lead-kobayashi"
-  spaceRef: "haconiwa-dev-company"
+  spaceRef: "kamui-dev-company"
   priority: "high"
   worktree: true
   branch: "backend/performance-opt"
@@ -459,7 +459,7 @@ spec:
     - Performance benchmarking
     - Innovation proposals
   assignee: "frontend-lead-ishii"
-  spaceRef: "haconiwa-dev-company"
+  spaceRef: "kamui-dev-company"
   priority: "medium"
   worktree: true
   branch: "frontend/innovation-research"
@@ -483,7 +483,7 @@ spec:
     - Deployment automation
     - Monitoring automation
   assignee: "devops-lead-matsui"
-  spaceRef: "haconiwa-dev-company"
+  spaceRef: "kamui-dev-company"
   priority: "high"
   worktree: true
   branch: "devops/automation-enhancement"
@@ -507,7 +507,7 @@ spec:
     - Compliance evaluation
     - Security roadmap development
   assignee: "security-lead-inoue"
-  spaceRef: "haconiwa-dev-company"
+  spaceRef: "kamui-dev-company"
   priority: "high"
   worktree: true
   branch: "security/architecture-audit"
@@ -531,7 +531,7 @@ spec:
     - Analytics dashboard
     - ML pipeline integration
   assignee: "data-lead-kimura"
-  spaceRef: "haconiwa-dev-company"
+  spaceRef: "kamui-dev-company"
   priority: "high"
   worktree: true
-  branch: "data/platform-development" 
+  branch: "data/platform-development"

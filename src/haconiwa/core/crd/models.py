@@ -342,4 +342,28 @@ class OrganizationCRD(BaseModel):
     metadata: Metadata
     spec: OrganizationSpec
     
+    model_config = ConfigDict(populate_by_name=True)
+
+
+# AICodeConfig CRD Models
+class ClaudeConfig(BaseModel):
+    """Claude AI configuration"""
+    settingsFile: str = Field(..., description="Path to settings.local.json file")
+    guidelinesFile: str = Field(..., description="Path to CLAUDE.md file")
+
+
+class AICodeConfigSpec(BaseModel):
+    """AICodeConfig CRD specification"""
+    provider: str = Field(..., description="AI provider: claude, copilot, cursor, etc.")
+    claude: Optional[ClaudeConfig] = Field(None, description="Claude-specific configuration")
+    targetCompany: str = Field(..., description="Target company name to apply configuration")
+
+
+class AICodeConfigCRD(BaseModel):
+    """AI Code Configuration Custom Resource Definition"""
+    apiVersion: str = Field("haconiwa.dev/v1", description="API version")
+    kind: str = Field("AICodeConfig", description="Resource kind")
+    metadata: Metadata
+    spec: AICodeConfigSpec
+    
     model_config = ConfigDict(populate_by_name=True) 
