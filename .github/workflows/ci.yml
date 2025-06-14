@@ -72,6 +72,11 @@ jobs:
         run: |
           # Test AICodeConfig functionality
           pytest tests/unit/test_aicode_config.py -v
+      
+      - name: Run task submit tests
+        run: |
+          # Test task submit functionality
+          pytest tests/unit/test_task_submit.py -v
 
       - name: Run scenario tests
         run: |
