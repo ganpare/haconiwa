@@ -13,13 +13,13 @@
 ### ripgrep (rg)
 Fast file content search tool is available at:
 ```bash
-~/bin/rg
+rg
 ```
 
 Example usage:
 ```bash
-~/bin/rg "search_pattern" /path/to/search
-~/bin/rg "function_name" src/ -A5 -B5
+rg "search_pattern" /path/to/search
+rg "function_name" src/ -A5 -B5
 ```
 
 ## Lint and Type Check Commands

@@ -89,7 +89,7 @@ class SpaceManager:
             self._configure_pane_borders(session_name)
             
             # Create windows for each room
-            if not self._create_windows_for_rooms(session_name, rooms):
+            if not self._create_windows_for_rooms(session_name, rooms, base_path):
                 logger.error("Failed to create windows for rooms")
                 return False
             
@@ -97,7 +97,7 @@ class SpaceManager:
             desk_distribution = self._distribute_desks_to_windows(desk_mappings)
             
             # Debug: Log distribution details
-            logger.info(f"Desk distribution summary:")
+            logger.info("Desk distribution summary:")
             for room_id, desks in desk_distribution.items():
                 logger.info(f"  {room_id}: {len(desks)} mappings")
                 for i, desk in enumerate(desks):
@@ -425,7 +425,6 @@ class SpaceManager:
             logger.info(f"Fetching organization data for ref: {organization_ref}")
             
             # Try to get the actual Organization CRD from applied resources
-            from ..core.applier import CRDApplier
             
             # Get singleton instance of CRDApplier - this needs to be improved in real implementation
             # For now, we'll use a workaround to access applied resources
@@ -530,12 +529,19 @@ class SpaceManager:
             set_cmd = ["tmux", "set-option", "-t", session_name, "default-path", str(base_path.absolute())]
             subprocess.run(set_cmd, capture_output=True, text=True)
     
-    def _create_windows_for_rooms(self, session_name: str, rooms: List[Dict[str, Any]]) -> bool:
+    def _create_windows_for_rooms(self, session_name: str, rooms: List[Dict[str, Any]], base_path: Path) -> bool:
         """Create tmux windows for each room"""
         try:
+            # Create room-window mapping
+            room_window_mapping = {}
+            
             for i, room in enumerate(rooms):
                 room_name = room.get("name", f"Room {i+1}")
                 window_name = room_name.replace(" Room", "")  # "Alpha Room" → "Alpha"
+                
+                # Store room-window mapping
+                room_id = room.get("id", room_name.lower().replace(" ", "-"))
+                room_window_mapping[room_id] = i
                 
                 if i == 0:
                     # Rename the initial window (window 0)
@@ -563,11 +569,64 @@ class SpaceManager:
                 
                 logger.info(f"Created window {i}: {window_name}")
             
+            # Save room-window mapping to file
+            self._save_room_window_mapping(session_name, room_window_mapping, base_path)
+            
             return True
             
         except Exception as e:
             logger.error(f"Error creating windows for rooms: {e}")
             return False
+    
+    def _save_room_window_mapping(self, session_name: str, mapping: Dict[str, int], base_path: Path) -> None:
+        """Save room-window mapping to JSON file"""
+        try:
+            
+            haconiwa_dir = base_path / ".haconiwa"
+            haconiwa_dir.mkdir(exist_ok=True)
+            
+            mapping_file = haconiwa_dir / "room_window_mapping.json"
+            
+            # Load existing mappings if file exists
+            existing_mappings = {}
+            if mapping_file.exists():
+                with open(mapping_file, 'r') as f:
+                    existing_mappings = json.load(f)
+            
+            # Update with new mapping
+            existing_mappings[session_name] = mapping
+            
+            # Save updated mappings
+            with open(mapping_file, 'w') as f:
+                json.dump(existing_mappings, f, indent=2)
+            
+            logger.debug(f"Saved room-window mapping for session {session_name}")
+            
+        except Exception as e:
+            logger.warning(f"Could not save room-window mapping: {e}")
+    
+    def _load_room_window_mapping(self, session_name: str) -> Optional[Dict[str, int]]:
+        """Load room-window mapping from JSON file"""
+        try:
+            # Get base path from active_sessions or use default
+            base_path = Path.cwd()
+            if hasattr(self, 'active_sessions') and session_name in self.active_sessions:
+                session_data = self.active_sessions[session_name]
+                if 'base_path' in session_data:
+                    base_path = Path(session_data['base_path'])
+            
+            mapping_file = base_path / ".haconiwa" / "room_window_mapping.json"
+            
+            if mapping_file.exists():
+                with open(mapping_file, 'r') as f:
+                    all_mappings = json.load(f)
+                    return all_mappings.get(session_name, None)
+            
+            return None
+            
+        except Exception as e:
+            logger.warning(f"Could not load room-window mapping: {e}")
+            return None
     
     def _create_panes_in_window(self, session_name: str, window_id: str, pane_count: int) -> bool:
         """Create panes in specific tmux window - supports different layouts"""
@@ -877,15 +936,17 @@ class SpaceManager:
             # Convert index to room part: 0->r1, 1->r2, etc.
             room_part = f"r{room_index + 1}"
         else:
-            # Fallback to pattern matching if no CRD available
-            if room_id == "room-01":
-                room_part = "r1"
-            elif room_id == "room-02":
-                room_part = "r2"
-            elif room_id == "room-executive":
-                room_part = "re"
+            # Fallback: try to load from saved room-window mapping
+            for session_name in (self.active_sessions.keys() if hasattr(self, 'active_sessions') and self.active_sessions else []):
+                mapping = self._load_room_window_mapping(session_name)
+                if mapping and room_id in mapping:
+                    room_index = mapping[room_id]
+                    room_part = f"r{room_index + 1}"
+                    break
             else:
-                room_part = "r1"  # Default fallback
+                # If no mapping found, default to r1
+                logger.warning(f"No room mapping found for {room_id}, defaulting to r1")
+                room_part = "r1"
         
         # Generate agent ID: org01-pm-r1, org01-wk-a-r2, org05-ceo-re, etc.
         agent_id = f"org{org_num}-{role_part}-{room_part}"
@@ -974,7 +1035,6 @@ class SpaceManager:
         """Update pane directory based on task assignment logs"""
         try:
             import json
-            from pathlib import Path
             
             # Generate agent ID from pane mapping
             agent_id = self._get_agent_id_from_pane_mapping(mapping)
@@ -1172,23 +1232,32 @@ class SpaceManager:
                     return "0"
                 return str(idx)
         
-        # Fallback: Handle specific room names
-        if room_id == "room-01":
-            return "0"
-        elif room_id == "room-02":
-            return "1"
-        elif room_id == "room-executive":
-            return "0"  # Executive room is the first window
-        elif room_id == "room-standby":
-            return "1"  # Standby room is the second window
-        else:
-            # Extract number from room-XX format
+        # Try to load from saved room-window mapping
+        # First try all active sessions
+        for session_name in (self.active_sessions.keys() if hasattr(self, 'active_sessions') and self.active_sessions else []):
+            mapping = self._load_room_window_mapping(session_name)
+            if mapping and room_id in mapping:
+                logger.debug(f"Found room {room_id} in saved mapping for session {session_name}: window {mapping[room_id]}")
+                return str(mapping[room_id])
+        
+        # If not found, try to find mapping file in current directory structure
+        # This handles cases where active_sessions is not yet populated
+        import glob
+        mapping_files = glob.glob("*/.haconiwa/room_window_mapping.json")
+        for mapping_file in mapping_files:
             try:
-                room_num = int(room_id.split("-")[1])
-                return str(room_num - 1)
-            except (IndexError, ValueError):
-                logger.warning(f"Unknown room_id format: {room_id}, defaulting to window 0")
-                return "0"
+                with open(mapping_file, 'r') as f:
+                    all_mappings = json.load(f)
+                    for session_name, session_mapping in all_mappings.items():
+                        if room_id in session_mapping:
+                            logger.debug(f"Found room {room_id} in mapping file {mapping_file}: window {session_mapping[room_id]}")
+                            return str(session_mapping[room_id])
+            except Exception as e:
+                logger.debug(f"Could not read mapping file {mapping_file}: {e}")
+        
+        # Final fallback: default to window 0
+        logger.warning(f"Could not determine window for room {room_id}, defaulting to window 0")
+        return "0"
     
     def _calculate_panes_per_window(self, grid: str, room_count: int) -> Dict[str, Any]:
         """Calculate panes per window based on grid and room count"""
@@ -1664,7 +1733,7 @@ class SpaceManager:
                 # Try alternative paths
                 base_path = Path(f"./{space_ref}")
                 if not base_path.exists():
-                    base_path = Path(f"./test-world-multiroom-tasks")
+                    base_path = Path("./test-world-multiroom-tasks")
                     if not base_path.exists():
                         logger.warning(f"Cannot find base path for space: {space_ref}")
                         return 0
@@ -1785,9 +1854,7 @@ class SpaceManager:
     def _display_created_structure(self, base_path: Path, organizations: List[Dict[str, Any]], total_panes: int = 32, room_count: int = 2) -> None:
         """Display comprehensive world structure including hierarchy, tasks, and directory mapping"""
         from rich.console import Console
-        from rich.tree import Tree
         from rich.panel import Panel
-        from rich.table import Table
         from rich.columns import Columns
         
         console = Console()
