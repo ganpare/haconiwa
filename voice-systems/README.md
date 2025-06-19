@@ -6,7 +6,7 @@ A comprehensive voice interaction system and command execution permission system
 
 - **Fast voice responses**: Immediate audio feedback using OpenAI Realtime API
 - **Voice-controlled security**: Voice authorization for command execution
-- **Intelligent system selection**: Automatic TTS system selection based on context
+- **Adaptive TTS selection**: OpenAI Realtime (instant responses) ⇔ Gemini TTS (task completion) usage-specific switching
 - **AI voice recognition**: Natural intent understanding with Whisper + GPT-4o
 
 ## User Flow
@@ -127,6 +127,31 @@ python voice-systems/command-permission/command_permission.py "mkdir test" "Crea
 - Gemini Live API implementation
 - Streaming TTS tests
 - Various voice synthesis approach prototypes
+
+## Voice Model Selection Strategy
+
+### OpenAI Realtime API
+- **Model**: gpt-4o-realtime-preview
+- **Voice**: Shimmer (ultra-fast, low-latency)
+- **Features**: Real-time streaming via WebSocket connection
+- **Optimal Use**: Instant responses during conversation, quick answers to questions
+
+### Gemini TTS
+- **Model**: gemini-2.5-flash-preview-tts
+- **Voice**: Zephyr (natural, high-quality)
+- **Features**: File generation type, stable high-quality audio
+- **Optimal Use**: Important task completion notifications, detailed explanations
+
+### Automatic Selection Algorithm
+The system automatically selects TTS based on the following criteria:
+
+1. **Speed Priority** → OpenAI Realtime
+   - Responses to user questions
+   - Situations where conversation continuity is important
+
+2. **Quality & Stability Priority** → Gemini TTS
+   - Important notifications like file editing completion
+   - Completion reports after long-running processes
 
 ## Usage Guidelines
 

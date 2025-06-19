@@ -6,7 +6,7 @@ Claude Code用の包括的な音声対話システムとコマンド実行許可
 
 - **高速音声応答**: OpenAI Realtime APIによる即座の音声フィードバック
 - **音声制御セキュリティ**: コマンド実行の音声認証
-- **知能的システム選択**: コンテキストに基づく自動TTS選択
+- **適応的TTS選択**: OpenAI Realtime (即座の応答) ⇔ Gemini TTS (タスク完了) の用途別使い分け
 - **AI音声認識**: Whisper + GPT-4oによる自然な意図理解
 
 ## ユーザーフロー
@@ -127,6 +127,31 @@ python voice-systems/command-permission/command_permission.py "mkdir test" "テ�
 - Gemini Live API実装
 - ストリーミングTTSテスト
 - 各種音声合成アプローチのプロトタイプ
+
+## 音声モデル選択戦略
+
+### OpenAI Realtime API
+- **モデル**: gpt-4o-realtime-preview
+- **音声**: Shimmer (超高速・低レイテンシ)
+- **特徴**: WebSocket接続によるリアルタイムストリーミング
+- **最適用途**: 対話中の即座の応答、質問への迅速な回答
+
+### Gemini TTS
+- **モデル**: gemini-2.5-flash-preview-tts
+- **音声**: Zephyr (自然・高品質)
+- **特徴**: ファイル生成型、安定した高品質音声
+- **最適用途**: 重要なタスク完了通知、詳細な説明
+
+### 自動選択アルゴリズム
+システムが以下の基準で自動的にTTSを選択：
+
+1. **応答速度重視** → OpenAI Realtime
+   - ユーザーからの質問への回答
+   - 対話の継続性が重要な場面
+
+2. **音質・安定性重視** → Gemini TTS
+   - ファイル編集完了などの重要な通知
+   - 長時間処理後の完了報告
 
 ## 使用ガイドライン
 
