@@ -6,7 +6,7 @@ A comprehensive voice interaction system and command execution permission system
 
 - **Fast voice responses**: Immediate audio feedback using OpenAI Realtime API
 - **Voice-controlled security**: Voice authorization for command execution
-- **Adaptive TTS selection**: OpenAI Realtime (instant responses) ⇔ Gemini TTS (task completion) usage-specific switching
+- **TTS selection**: OpenAI Realtime (instant responses) ⇔ Gemini TTS (task completion) usage-specific switching
 - **AI voice recognition**: Natural intent understanding with Whisper + GPT-4o
 
 ## User Flow

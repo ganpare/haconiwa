@@ -6,7 +6,7 @@ Claude Code用の包括的な音声対話システムとコマンド実行許可
 
 - **高速音声応答**: OpenAI Realtime APIによる即座の音声フィードバック
 - **音声制御セキュリティ**: コマンド実行の音声認証
-- **適応的TTS選択**: OpenAI Realtime (即座の応答) ⇔ Gemini TTS (タスク完了) の用途別使い分け
+- **TTS選択**: OpenAI Realtime (即座の応答) ⇔ Gemini TTS (タスク完了) の用途別使い分け
 - **AI音声認識**: Whisper + GPT-4oによる自然な意図理解
 
 ## ユーザーフロー
