@@ -580,15 +580,15 @@ class TaskSubmitter:
 
 ## 基本情報
 - **エージェントID**: `{assignee}`
-- **タスク名**: `{task_name}`
+- **タスクブランチ名**: `{task_name}`
 - **割り当て日時**: {assignment_info['assigned_at']}
 - **ステータス**: {assignment_info['status']}
 
 ## 環境情報
 - **カンパニー**: `{company}`
-- **タスクディレクトリ**: `{assignment_info['task_directory']}`
+- **タスクブランチディレクトリ**: `{assignment_info['task_directory']}`
 
-## タスク詳細
+## タスクブランチ詳細
 {description}
 
 ## このディレクトリについて

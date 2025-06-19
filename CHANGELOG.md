@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### **Git worktree 用の自動 `.env` ファイルコピー機能を追加**
 - 📋 **apply コマンドの --env フラグ** - [詳細ガイド](docs/commands/apply.md)
-- 🔄 **自動環境変数配布** - 各タスクのgit worktreeディレクトリに.envファイルを自動コピー
+- 🔄 **自動環境変数配布** - 各タスクブランチのgit worktreeディレクトリに.envファイルを自動コピー
 - 🏗️ **環境別設定対応** - 複数の.envファイルマージ機能
 
 #### **AIモデル検索と並列設定生成を含む `scan` コマンドを追加**
@@ -38,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### **Git worktree が `origin/branch` から作成されるように修正**
 - 🌿 **ブランチ作成改善** - defaultBranchからの正しいブランチ作成
 - 🔗 **リモート追跡強化** - origin参照による一貫性確保
-- ⚡ **ワークフロー最適化** - タスク間の独立性向上
+- ⚡ **ワークフロー最適化** - タスクブランチ間の独立性向上
 
 ## [0.5.0] - 2025-06-13
 

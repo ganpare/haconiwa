@@ -62,9 +62,9 @@ class TmuxMonitor:
                 'no_task': '-'
             },
             'ja': {
-                'pane': 'ペイン',
+                'pane': 'デスク',
                 'title': 'タイトル',
-                'task': 'タスク',
+                'task': 'タスクブランチ',
                 'parent': '親プロセス', 
                 'claude': 'プロバイダAI',
                 'agent': 'エージェント名',
@@ -78,7 +78,7 @@ class TmuxMonitor:
                 'no_process': 'プロセス無し',
                 'inactive': '非アクティブ',
                 'summary': 'サマリー',
-                'active_panes': 'アクティブペイン',
+                'active_panes': 'アクティブデスク',
                 'average_cpu': '平均稼働率',
                 'total_memory': '合計メモリ',
                 'last_update': '最終更新',
@@ -119,7 +119,7 @@ class TmuxMonitor:
                 if Path(path).exists():
                     with open(path, 'r', encoding='utf-8') as f:
                         mappings = json.load(f)
-                        # ペインインデックス順にエージェントIDをマッピング
+                        # デスクインデックス順にエージェントIDをマッピング
                         agent_map = {}
                         for i, mapping in enumerate(mappings):
                             agent_map[i] = mapping.get('agent_id', f'unknown-{i}')
@@ -133,7 +133,7 @@ class TmuxMonitor:
             return {}
     
     def get_agent_id_for_pane(self, window_index, pane_index):
-        """ウィンドウとペインインデックスに対応するエージェントIDを取得"""
+        """ウィンドウとデスクインデックスに対応するエージェントIDを取得"""
         # window:pane の形式でキーを作成するか、従来通りpane_indexのみを使用
         # とりあえず従来通りの形式を維持（将来的に拡張可能）
         agent_key = f"{window_index}:{pane_index}" if window_index is not None else pane_index
@@ -153,7 +153,7 @@ class TmuxMonitor:
             return self.get_text('busy')
     
     def extract_task_name(self, pane_title):
-        """ペインタイトルからタスク名を抽出"""
+        """デスクタイトルからタスクブランチ名を抽出"""
         # "[Task: task_name]" パターンを探す
         match = re.search(r'\[Task:\s*([^\]]+)\]', pane_title)
         if match:
@@ -161,15 +161,64 @@ class TmuxMonitor:
         return None
     
     def extract_task_id_from_path(self, current_path):
-        """現在のパスからタスクIDを抽出"""
+        """現在のパスからタスクブランチIDを抽出"""
         if not current_path:
             return None
         
-        # パスからtask_で始まるディレクトリ名を探す
+        # パスからタスク関連ディレクトリ名を探す
         path_parts = Path(current_path).parts
-        for part in path_parts:
-            if part.startswith('task_') and not part == 'tasks':
+        
+        # tasksディレクトリのインデックスを探す
+        tasks_index = -1
+        for i, part in enumerate(path_parts):
+            if part == 'tasks':
+                tasks_index = i
+                break
+        
+        if tasks_index == -1:
+            return None
+        
+        # tasksディレクトリ以降の部分を処理
+        remaining_parts = path_parts[tasks_index + 1:]
+        
+        if not remaining_parts:
+            return None
+        
+        # スラッシュ形式の場合（feature/01_xxx または feature/task_xxx）の検出と再構築
+        if len(remaining_parts) >= 2:
+            # 最初の部分がカテゴリ（feature, bugfix等）で、2番目の部分が適切なパターンの場合
+            first_part = remaining_parts[0]
+            second_part = remaining_parts[1]
+            
+            # Gitカテゴリをチェック
+            git_categories = ['feature', 'bugfix', 'enhancement', 'research', 'hotfix', 'refactor', 'docs', 'test', 'perf']
+            
+            # 第一部分がGitカテゴリの場合、第二部分と組み合わせて返す
+            if any(prefix in first_part for prefix in git_categories):
+                # スラッシュ形式として再構築
+                return f"{first_part}/{second_part}"
+        
+        # 単一ディレクトリのパターンをチェック
+        for part in remaining_parts:
+            # 1. 既存の task_ パターン
+            if part.startswith('task_'):
                 return part
+            
+            # 2. Gitカテゴリベースのパターン（あらゆる形式に対応）
+            git_categories = ['feature', 'bugfix', 'enhancement', 'research', 'hotfix', 'refactor', 'docs', 'test', 'perf']
+            for category in git_categories:
+                # ハイフン形式: feature-xxx (番号関係なく全対応)
+                if part.startswith(f'{category}-'):
+                    return part
+                # アンダースコア形式: feature_xxx (番号関係なく全対応)
+                if part.startswith(f'{category}_'):
+                    return part
+            
+            # 3. ハイフン・アンダースコア区切りのパターン（旧task_形式対応）
+            if 'task' in part.lower():
+                if ('_task' in part or '-task' in part or 
+                    part.startswith('task') or part.endswith('task')):
+                    return part
         
         return None
     
@@ -192,7 +241,7 @@ class TmuxMonitor:
             return {}
     
     def get_tmux_panes_info(self):
-        """tmuxペイン情報を高速取得（複数window対応）"""
+        """tmuxデスク情報を高速取得（複数window対応）"""
         try:
             panes = []
             
@@ -216,7 +265,7 @@ class TmuxMonitor:
                                     'current_path': parts[4]
                                 })
             else:
-                # 全windowのペイン情報を取得
+                # 全windowのデスク情報を取得
                 # まずwindowの一覧を取得
                 windows_result = subprocess.run([
                     'tmux', 'list-windows', '-t', self.session_name, '-F', '#{window_index}'
@@ -225,7 +274,7 @@ class TmuxMonitor:
                 if windows_result.returncode == 0:
                     for window_index in windows_result.stdout.strip().split('\n'):
                         if window_index.isdigit():
-                            # 各windowのペイン情報を取得
+                            # 各windowのデスク情報を取得
                             result = subprocess.run([
                                 'tmux', 'list-panes', '-t', f'{self.session_name}:{window_index}', 
                                 '-F', window_index + ':#{pane_index}:#{pane_title}:#{pane_pid}:#{pane_current_path}'
@@ -358,7 +407,7 @@ class TmuxMonitor:
                 header = config.pop("header")
                 table.add_column(header, **config)
         
-        # 各ペインの行を追加（全windowの全ペイン）
+        # 各デスクの行を追加（全windowの全デスク）
         for pane in panes:
             window_index = pane['window']
             pane_index = pane['index']
@@ -367,10 +416,10 @@ class TmuxMonitor:
             pane_current_path = pane.get('current_path', '')
             window_name = windows_info.get(window_index, f"Window-{window_index}")
             
-            # そのペインのPIDに対応するClaudeプロセスを探す
+            # そのデスクのPIDに対応するClaudeプロセスを探す
             claude_process = None
             for pid, proc_info in claude_processes.items():
-                # ペインのPIDまたは子プロセスをチェック
+                # デスクのPIDまたは子プロセスをチェック
                 if pid == pane_pid or self.is_child_of_pane(pid, pane_pid):
                     claude_process = proc_info
                     break
@@ -402,10 +451,10 @@ class TmuxMonitor:
                     display_title = f"{agent_id} - {dir_name}"
                     row_data.append(display_title)
                 elif col_name == 'task':
-                    # まずペインタイトルからタスク名を抽出を試みる
+                    # まずデスクタイトルからタスクブランチ名を抽出を試みる
                     task_name = self.extract_task_name(pane_title)
                     
-                    # ペインタイトルにタスク名がない場合は、パスから抽出
+                    # デスクタイトルにタスクブランチ名がない場合は、パスから抽出
                     if not task_name:
                         task_id = self.extract_task_id_from_path(pane_current_path)
                         task_name = task_id
@@ -457,7 +506,7 @@ class TmuxMonitor:
         return table
 
     def is_child_of_pane(self, process_pid, pane_pid):
-        """プロセスがペインの子プロセスかチェック（psutil高速版）"""
+        """プロセスがデスクの子プロセスかチェック（psutil高速版）"""
         try:
             process = psutil.Process(process_pid)
             # 直接の親をチェック
@@ -482,7 +531,7 @@ class TmuxMonitor:
         
         for pane in panes:
             pane_pid = pane['pid']
-            # ペインに関連するClaudeプロセスを探す
+            # デスクに関連するClaudeプロセスを探す
             for pid, proc_info in claude_processes.items():
                 if pid == pane_pid or self.is_child_of_pane(pid, pane_pid):
                     active_count += 1

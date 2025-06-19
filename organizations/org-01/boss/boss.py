@@ -9,7 +9,7 @@ const boss: React.FC = () => {
           <CardHeader className="bg-card">
             <CardTitle className="text-lg font-semibold bg-card">Boss AIエージェント</CardTitle>
             <CardDescription className="text-sm text-gray-500 bg-card">
-              タスク分解、割り当て、Worker監視、進捗管理を行うAIエージェントです。
+              タスクブランチ分解、割り当て、Worker監視、進捗管理を行うAIエージェントです。
             </CardDescription>
           </CardHeader>
           <CardContent className="bg-card">
@@ -17,7 +17,7 @@ const boss: React.FC = () => {
               <h3 className="text-md font-semibold mb-2">機能</h3>
               <ul className="list-disc pl-5">
                 <li>BaseAgentクラスからの継承</li>
-                <li>タスク分解と割り当て戦略の実装</li>
+                <li>タスクブランチ分解と割り当て戦略の実装</li>
                 <li>Worker監視と進捗管理</li>
                 <li>意思決定ロジック（Python実装）</li>
                 <li>エラーハンドリングと復旧処理</li>

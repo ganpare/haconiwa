@@ -2,7 +2,7 @@
 
 ## 概要
 
-`haconiwa apply` コマンドに追加された `--env` フラグにより、Git worktreeを使用する各タスクに環境変数ファイル（.env）を自動配布する機能が実装されました。
+`haconiwa apply` コマンドに追加された `--env` フラグにより、Git worktreeを使用する各タスクブランチに環境変数ファイル（.env）を自動配布する機能が実装されました。
 
 ## 機能詳細
 
@@ -50,7 +50,7 @@ REDIS_URL="redis://localhost:6379"
     ↓
 3. 複数ファイルの場合はマージ（後のファイルが優先）
     ↓
-4. git worktree作成時に各タスクディレクトリに.envをコピー
+4. git worktree作成時に各タスクブランチディレクトリに.envをコピー
     ↓
 5. 各エージェントは自分のディレクトリの.envを使用
 ```
@@ -132,14 +132,14 @@ spec:
 
 1. **ファイル読み込み**: 指定された.envファイルを順次読み込み
 2. **マージ処理**: 複数ファイルの環境変数をマージ（後勝ち）
-3. **配布処理**: git worktree作成時に各タスクディレクトリに配布
-4. **自動.gitignore更新**: タスクディレクトリに.gitignoreも自動生成
+3. **配布処理**: git worktree作成時に各タスクブランチディレクトリに配布
+4. **自動.gitignore更新**: タスクブランチディレクトリに.gitignoreも自動生成
 
 ### エラーハンドリング
 
 - 指定された.envファイルが存在しない場合は警告表示
 - 読み込みエラーが発生した場合は詳細なエラーメッセージ
-- 部分的な失敗でも他のタスクは継続処理
+- 部分的な失敗でも他のタスクブランチは継続処理
 
 ## 使用例とベストプラクティス
 
@@ -171,7 +171,7 @@ cd /path/to/task && dotenv claude
 1. **シンプル**: 複雑な継承メカニズムが不要
 2. **標準的**: .envファイルは多くの開発者が慣れ親しんだ形式
 3. **柔軟**: 環境別に異なる.envファイルを簡単に切り替え可能
-4. **独立性**: 各タスクが独自の環境変数セットを持つ
+4. **独立性**: 各タスクブランチが独自の環境変数セットを持つ
 5. **互換性**: 既存のツールやライブラリと相性が良い
 
 ## 将来の拡張予定
@@ -182,11 +182,219 @@ cd /path/to/task && dotenv claude
 
 ---
 
+# 最新の開発完了項目 (2025-06-19)
+
+## タスクブランチ命名システムの大幅改善
+
+### 概要
+
+Gitワークフローに準拠した柔軟なタスクブランチ命名システムを実装し、モニター表示とTMUXペイン名の自動更新機能を大幅に強化しました。
+
+### 実装された機能
+
+#### 1. 柔軟なタスクブランチ命名規則
+
+**対応する命名パターン**:
+- **スラッシュ形式**: `feature/01_ai_strategy`, `bugfix/04_product_roadmap`
+- **ハイフン形式**: `feature-02_tech_architecture`
+- **アンダースコア形式**: `feature_03_financial_planning`
+
+**対応するGitカテゴリ**:
+- `feature/` - 新機能開発
+- `bugfix/` - バグ修正
+- `hotfix/` - 緊急修正
+- `enhancement/` - 機能強化
+- `refactor/` - リファクタリング
+- `docs/` - ドキュメント
+- `test/` - テスト関連
+- `perf/` - パフォーマンス最適化
+
+#### 2. モニター表示の完全対応
+
+**改善されたタスクブランチ認識**:
+- あらゆる番号パターンに対応（01, 02, 999, xyz等）
+- Gitカテゴリで始まるタスクブランチを自動認識
+- スラッシュ形式での完全なタスクブランチ名表示（`feature/01_ai_strategy`）
+
+**モニターコマンド例**:
+```bash
+# タスクブランチ列を含むモニター表示
+haconiwa monitor --columns pane,agent,task --japanese
+
+# 特定カテゴリのタスクブランチを確認
+haconiwa monitor --window 0 --japanese
+```
+
+#### 3. TMUXペイン名の自動更新
+
+**ペイン名形式**: `エージェント名-タスクブランチ名`
+
+**動作例**:
+- エージェント移動前: `data-lead-kimura-standby`
+- エージェント移動後: `data-lead-kimura-feature/01_ai_strategy`
+
+**実装詳細**:
+- `haconiwa apply` 実行時にエージェントがタスクディレクトリに移動
+- 同時にTMUXペイン名を `tmux select-pane -T` で自動更新
+- task_assignment.json からタスクブランチ名を取得し反映
+
+#### 4. エージェント移動の改善
+
+**対応するディレクトリ構造**:
+- **フラット構造**: `tasks/task_name/`
+- **ネスト構造**: `tasks/category/task_name/`（スラッシュ形式対応）
+
+**移動ロジック**:
+```python
+# tasks/feature/01_ai_strategy/ のような
+# ネスト構造を自動認識して正しくエージェントを移動
+```
+
+### YAMLファイルでの設定例
+
+```yaml
+# 多様なタスクブランチ命名の例
+---
+apiVersion: haconiwa.dev/v1
+kind: Task
+metadata:
+  name: feature/01_ai_strategy
+spec:
+  taskId: feature/01_ai_strategy
+  title: "AI Strategy Development"
+  assignee: "ceo-motoki"
+  worktree: true
+  branch: "strategy/ai-roadmap"
+
+---
+apiVersion: haconiwa.dev/v1
+kind: Task
+metadata:
+  name: bugfix/04_product_roadmap
+spec:
+  taskId: bugfix/04_product_roadmap
+  title: "Product Roadmap Bug Fix"
+  assignee: "vpp-suzuki"
+  worktree: true
+  branch: "product/roadmap-fixes"
+
+---
+apiVersion: haconiwa.dev/v1
+kind: Task
+metadata:
+  name: feature-02_tech_architecture
+spec:
+  taskId: feature-02_tech_architecture
+  title: "Technical Architecture Review"
+  assignee: "cto-yamada"
+  worktree: true
+  branch: "architecture/system-review"
+```
+
+### 技術仕様
+
+#### モニター表示ロジック改善
+
+**ファイル**: `src/haconiwa/monitor/tmux_monitor.py`
+
+```python
+def extract_task_id_from_path(self, current_path):
+    """現在のパスからタスクブランチIDを抽出"""
+    
+    # スラッシュ形式の完全な再構築
+    if len(remaining_parts) >= 2:
+        git_categories = ['feature', 'bugfix', 'hotfix', 'enhancement', 
+                         'refactor', 'docs', 'test', 'perf']
+        
+        if any(prefix in first_part for prefix in git_categories):
+            return f"{first_part}/{second_part}"
+    
+    # ハイフン・アンダースコア形式の全パターン対応
+    for category in git_categories:
+        if part.startswith(f'{category}-') or part.startswith(f'{category}_'):
+            return part
+```
+
+#### TMUXペイン名更新ロジック
+
+**ファイル**: `src/haconiwa/space/manager.py`
+
+```python
+def update_panes_for_task_assignments(self, session_name: str, base_path: Path):
+    """ペイン更新時にタスクブランチ名でペイン名を設定"""
+    
+    # タスクブランチ名を取得
+    task_branch_name = assignment.get("task_name", task_dir.name)
+    
+    # ペイン名を エージェント名-タスクブランチ名 に更新
+    pane_title = f"{agent_id}-{task_branch_name}"
+    title_cmd = ["tmux", "select-pane", "-t", f"{session_name}:{window_id}.{pane_index}", 
+                "-T", pane_title]
+```
+
+### 使用例とベストプラクティス
+
+#### 1. 多様なタスクブランチの作成
+
+```bash
+# Gitスタイルの命名でタスクを定義
+# 実際のGit開発フローに近い体験を提供
+
+# 機能開発
+feature/01_user_authentication
+feature/02_api_integration
+
+# バグ修正
+bugfix/03_login_validation
+bugfix/04_data_sync_issue
+
+# 緊急修正
+hotfix/05_security_patch
+
+# パフォーマンス改善
+perf/06_database_optimization
+```
+
+#### 2. モニターでの確認
+
+```bash
+# タスクブランチの割り当て状況を確認
+haconiwa monitor --japanese
+
+# 出力例:
+# デスク | エージェント名              | タスクブランチ
+# 0     | ceo-motoki                 | feature/01_ai_strategy
+# 1     | cto-yamada                 | feature-02_tech_architecture
+# 2     | cfo-tanaka                 | feature_03_financial_planning
+```
+
+#### 3. TMUXセッションでの確認
+
+```bash
+# セッションにアタッチしてペイン名を確認
+haconiwa space attach -c haconiwa-dev-company
+
+# ペイン名例:
+# - ceo-motoki-feature/01_ai_strategy
+# - cto-yamada-feature-02_tech_architecture
+# - cfo-tanaka-feature_03_financial_planning
+```
+
+### メリット
+
+1. **Git互換性**: 実際のGitワークフローに準拠した命名規則
+2. **視認性向上**: モニターとTMUXで一貫したタスクブランチ表示
+3. **柔軟性**: 複数の命名パターンに対応
+4. **自動化**: ペイン名の手動更新が不要
+5. **拡張性**: 新しいGitカテゴリを簡単に追加可能
+
+---
+
 # 追加開発項目: AICodeConfig CRD サポート
 
 ## 概要
 
-AI開発支援ツール用の設定を管理する汎用的なCRD `AICodeConfig` を新規追加し、各タスクのworktreeに自動的にAIツール用の設定ファイルを配布する機能を実装予定です。現在はClaude Codeをサポートし、将来的にGitHub Copilot、Cursor、Codeium等にも対応予定です。
+AI開発支援ツール用の設定を管理する汎用的なCRD `AICodeConfig` を新規追加し、各タスクブランチのworktreeに自動的にAIツール用の設定ファイルを配布する機能を実装予定です。現在はClaude Codeをサポートし、将来的にGitHub Copilot、Cursor、Codeium等にも対応予定です。
 
 ## 新機能の設計
 
@@ -320,7 +528,7 @@ spec:
 ### 現在の適用範囲
 
 **カンパニー単位での一括適用のみ**：
-- `targetCompany`で指定されたカンパニー内の全タスクに同じ設定を適用
+- `targetCompany`で指定されたカンパニー内の全タスクブランチに同じ設定を適用
 - 1つのカンパニーに対して1つのAICodeConfig設定のみ有効
 
 ### 適用例
@@ -349,7 +557,7 @@ haconiwa apply -f all-resources.yaml
 
 ### Phase 3: カンパニー単位の適用
 - [ ] targetCompanyによる適用対象の指定
-- [ ] カンパニー内全タスクへの一括適用
+- [ ] カンパニー内全タスクブランチへの一括適用
 
 ### Phase 4: 他のAIプロバイダー対応
 - [ ] GitHub Copilot サポート
@@ -372,7 +580,7 @@ haconiwa apply -f all-resources.yaml
   targetSelector:
     matchRoles: ["senior-engineer", "architect"]
   ```
-- [ ] **タスク単位での設定**: パターンマッチングによる細かい制御
+- [ ] **タスクブランチ単位での設定**: パターンマッチングによる細かい制御
   ```yaml
   # 将来実装例
   targetSelector:

@@ -31,8 +31,8 @@ class OrganizationManager:
             hierarchy = config.get("hierarchy", {})
             legal_framework = config.get("legal_framework")
             
-            logger.info(f"Creating organization: {company_name} ({industry})")
-            logger.info(f"Base path: {base_path}")
+            logger.info(f"組織を作成中: {company_name} ({industry})")
+            logger.info(f"基準ディレクトリ: {base_path}")
             
             # Create base organization directory
             org_path = base_path / "organization"
@@ -66,15 +66,15 @@ class OrganizationManager:
                 "roles": roles_created
             }
             
-            logger.info(f"✅ Organization '{company_name}' created successfully")
-            logger.info(f"   📁 Path: {org_path}")
-            logger.info(f"   🏢 Departments: {departments_created}")
-            logger.info(f"   👥 Roles: {roles_created}")
+            logger.info(f"✅ 組織 '{company_name}' の作成が成功しました")
+            logger.info(f"   📁 パス: {org_path}")
+            logger.info(f"   🏢 部門: {departments_created}")
+            logger.info(f"   👥 役職: {roles_created}")
             
             return True
             
         except Exception as e:
-            logger.error(f"Failed to create organization {config.get('name', 'unknown')}: {e}")
+            logger.error(f"組織 {config.get('name', 'unknown')} の作成に失敗: {e}")
             return False
     
     def _create_company_metadata(self, org_path: Path, config: Dict[str, Any]) -> None:
@@ -132,11 +132,11 @@ Use the department directories to access specific team configurations and role a
             if dept_legal_framework:
                 self._apply_department_legal_framework(dept_path, dept_legal_framework)
             
-            logger.info(f"Created department: {dept_name} ({dept_id}) with {len(roles)} roles")
+            logger.info(f"部門を作成しました: {dept_name} ({dept_id}) {len(roles)} 役職")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to create department {dept_config.get('id', 'unknown')}: {e}")
+            logger.error(f"部門 {dept_config.get('id', 'unknown')} の作成に失敗: {e}")
             return False
     
     def _create_role(self, roles_path: Path, role_config: Dict[str, Any], dept_name: str) -> None:
@@ -260,10 +260,10 @@ These rules apply to all departments, roles, and activities within the organizat
 *Generated on: {self._get_timestamp()}*
 """)
             
-            logger.info(f"Applied organization-level legal framework: {law_path}")
+            logger.info(f"組織レベルのリーガルフレームワークを適用しました: {law_path}")
             
         except Exception as e:
-            logger.warning(f"Could not apply organization legal framework: {e}")
+            logger.warning(f"組織のリーガルフレームワークを適用できませんでした: {e}")
     
     def _apply_department_legal_framework(self, dept_path: Path, legal_framework: Dict[str, Any]) -> None:
         """Apply legal framework to department level"""
@@ -295,7 +295,7 @@ These rules apply to all roles and activities within this department.
             logger.debug(f"Applied department-level legal framework: {law_path}")
             
         except Exception as e:
-            logger.warning(f"Could not apply department legal framework: {e}")
+            logger.warning(f"部門のリーガルフレームワークを適用できませんでした: {e}")
     
     def _display_organization_structure(self, org_path: Path, config: Dict[str, Any], 
                                       departments_created: int, roles_created: int) -> None:
@@ -338,9 +338,9 @@ These rules apply to all roles and activities within this department.
         console.print()
         console.print(Panel.fit(
             tree,
-            title="[bold green]🏢 Organization Structure[/bold green]",
+            title="[bold green]🏢 組織構造[/bold green]",
             style="green",
-            subtitle=f"[dim]{departments_created} departments, {roles_created} roles[/dim]"
+            subtitle=f"[dim]{departments_created} 部門, {roles_created} 役職[/dim]"
         ))
         console.print()
     

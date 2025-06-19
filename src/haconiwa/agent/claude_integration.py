@@ -28,9 +28,9 @@ class ClaudeCodeIntegration:
         Claude Code設定ファイルを作成
         
         Args:
-            task_dir: タスクディレクトリパス
+            task_dir: タスクブランチディレクトリパス
             company_defaults: 会社レベルのデフォルト設定
-            task_config: タスクレベルの設定（オプション）
+            task_config: タスクブランチレベルの設定（オプション）
             
         Returns:
             作成成功時True、失敗時False
@@ -70,12 +70,12 @@ class ClaudeCodeIntegration:
         
         Args:
             company_defaults: 会社レベルのデフォルト設定
-            task_config: タスクレベルの設定
+            task_config: タスクブランチレベルの設定
             
         Returns:
             Claude Codeエージェントの場合True
         """
-        # タスクレベルの設定を優先
+        # タスクブランチレベルの設定を優先
         if task_config and task_config.get('type') == 'claude-code':
             return True
         
@@ -88,11 +88,11 @@ class ClaudeCodeIntegration:
     def _merge_agent_settings(self, company_defaults: Dict[str, Any], 
                             task_config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        会社デフォルト設定とタスク設定をマージ
+        会社デフォルト設定とタスクブランチ設定をマージ
         
         Args:
             company_defaults: 会社レベルのデフォルト設定
-            task_config: タスクレベルの設定
+            task_config: タスクブランチレベルの設定
             
         Returns:
             マージされた設定
@@ -103,9 +103,9 @@ class ClaudeCodeIntegration:
         if not task_config:
             return merged
         
-        # タスクレベルの設定をマージ
+        # タスクブランチレベルの設定をマージ
         
-        # エージェントタイプ（タスクレベルが優先）
+        # エージェントタイプ（タスクブランチレベルが優先）
         if 'type' in task_config:
             merged['type'] = task_config['type']
         

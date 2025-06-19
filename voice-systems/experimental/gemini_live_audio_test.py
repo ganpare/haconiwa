@@ -141,15 +141,15 @@ class GeminiLiveAudio:
                 self.out_queue = asyncio.Queue(maxsize=5)
                 
                 async with asyncio.TaskGroup() as tg:
-                    # 単一メッセージタスクを作成
+                    # 単一メッセージタスクブランチを作成
                     text_task = tg.create_task(self.single_message_mode(message))
                     
-                    # 音声関連タスクを作成
+                    # 音声関連タスクブランチを作成
                     tg.create_task(self.send_realtime())
                     tg.create_task(self.receive_audio())
                     tg.create_task(self.play_audio())
                     
-                    # テキストタスクの完了を待機
+                    # テキストタスクブランチの完了を待機
                     await text_task
                     
         except asyncio.CancelledError:

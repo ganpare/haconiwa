@@ -15,7 +15,7 @@ haconiwa tool parallel-dev
 ```bash
 haconiwa tool parallel-dev claude    # Claude Code SDKでの並列実行
 haconiwa tool parallel-dev status    # 実行状況確認
-haconiwa tool parallel-dev cancel    # タスクキャンセル
+haconiwa tool parallel-dev cancel    # タスクブランチキャンセル
 haconiwa tool parallel-dev history   # 実行履歴表示
 ```
 
@@ -68,7 +68,7 @@ tasks:
     prompt: Add validation methods and type hints
   - file: src/models/product.py
     prompt: Implement inventory tracking
-  # ... 最大10タスクまで
+  # ... 最大10タスクブランチまで
 options:
   max_concurrent: 5
   timeout: 90
@@ -84,7 +84,7 @@ haconiwa tool parallel-dev claude --from-yaml parallel-dev.yaml
 # 実行状態確認
 haconiwa tool parallel-dev status
 
-# 特定タスクのキャンセル
+# 特定タスクブランチのキャンセル
 haconiwa tool parallel-dev cancel task-123
 
 # 実行履歴表示

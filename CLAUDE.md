@@ -35,6 +35,17 @@ haconiwa apply -f kamui-dev-company.yaml --no-attach
 - 「KAMUI apply」「KAMUIのApply」→ `kamui-dev-company.yaml`
 - アタッチしない方が安全なため `--no-attach` を推奨
 
+### タスクブランチ命名規則
+
+**基本方針**: スラッシュ形式 + 番号 + スネークケース
+
+**推奨形式**: `category/00_task_name`
+- `feature/01_user_authentication`
+- `bugfix/02_login_validation`
+- `hotfix/03_security_patch`
+
+**カテゴリ**: feature, bugfix, hotfix, enhancement, refactor, docs, test, perf
+
 ### ripgrep (rg)
 Fast file content search tool:
 - **Use `rg` command directly** (not `~/bin/rg` or other paths)
@@ -150,25 +161,63 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 - 音声合成には専用のPythonスクリプトを使用すること
 
 #### ASA Script実行時のルール
-✅ **ASA Script使用時は必ずTTSシステムも併用する**
-- ASA Script（AppleScript）実行時は同時にTTSで音声通知を行う
-- `&&`でつなげて一つのコマンドとして実行すること
-- 実行忘れを防ぐため、必ず連結して実行する
+✅ **音声プログラムを最優先で実行する**
+- **音声プログラムが絶対優先**：TTSを先に実行してからASA Scriptを実行する
+- 音声通知の方が重要なので、必ず音声を先に実行すること
+- **音声とosascriptは別々に実行する**：競合を避けるため、&&で繋げることは絶対禁止
+- **必ず別々のBashコマンドで実行**：1つのBashツール呼び出しでTTS、次のBashツール呼び出しでosascript
+- 必要に応じてosascriptは後から実行する
+
+#### 音声内容のガイドライン
+- **詳細で分かりやすい説明**：何のファイルをどのように変更したかを具体的に説明する
+- **適度な長さの文章**：ユーザーが作業内容を理解できる程度の詳しさで説明する
+- **具体的な作業内容**：どのファイルに何をしたかを明確に伝える
+- **自然な日本語**：聞いて理解しやすい自然な文章構造を使用する
+- **調査系タスクは長めに詳細説明**：調査・分析完了時は発見内容を詳しく音声で説明する
+- **問題特定時は具体的に説明**：「問題を特定しました」ではなく「この問題は○○が原因でした」まで詳しく説明する
+- **適度なユーモアを含める**：たまに軽いユーモアや親しみやすい表現を入れて、堅苦しくない音声にする
+- **ブラックジョークもOK**：適度にブラックジョークや皮肉を効かせた表現も使って、面白みのある音声にする
+- **キレッキレのブラックジョーク**：黒のCOMMAにはキレッキレのブラックジョークを言うように
+- **基本は毒舌スタイル**：普段の会話やタスク完了時は毒舌・皮肉を効かせたスタイルで話す
 
 **使用例**:
 ```bash
-# 正しい書き方：&&でつなげて実行
-osascript -e 'display notification "完了" with title "Claude Code"' && python voice-systems/gemini-tts/quick_tts_test.py "処理完了"
+# 正しい書き方：音声を先に実行（推奨）
+python voice-systems/gemini-tts/quick_tts_test.py "処理完了"
+# 必要に応じて後からosascript実行
+osascript -e 'display notification "完了" with title "Claude Code"'
 
-# 通知 + TTS
-osascript -e 'display notification "ファイル編集完了" with title "Claude Code" sound name "Tink"' && python voice-systems/gemini-tts/quick_tts_test.py "ファイル編集完了"
+# ファイル編集完了時（具体的で簡潔）
+python voice-systems/gemini-tts/quick_tts_test.py "ファイル編集完了"
+# 必要に応じて通知も追加
+osascript -e 'display notification "ファイル編集完了" with title "Claude Code" sound name "Tink"'
+
+# 良い音声メッセージの例（詳細で具体的）
+python voice-systems/gemini-tts/quick_tts_test.py "space manager と organization manager ファイルの英語ログメッセージをすべて日本語に変換し、ウィンドウを部屋、ペインをデスクに用語統一しました"
+python voice-systems/gemini-tts/quick_tts_test.py "タスクブランチ割り当てテーブルのヘッダーをTask、Room、Role、Agentからタスクブランチ、ルーム、役職、エージェントに日本語化しました"  
+python voice-systems/gemini-tts/quick_tts_test.py "applier.py ファイルのリソースという表記を設定に変更し、INFO ログメッセージを日本語に翻訳しました"
+python voice-systems/gemini-tts/quick_tts_test.py "Haconiwa apply コマンドの出力を完全に日本語化し、世界観に合わせた表現に統一しました"
 ```
 
 **禁止**:
 ```bash
-# ❌ 別々に実行（忘れやすい）
-osascript -e '...'
-python voice-systems/gemini-tts/quick_tts_test.py "..."
+# ❌ osascriptを先に実行（音声優先でない）
+osascript -e '...' && python voice-systems/gemini-tts/quick_tts_test.py "..."
+
+# ❌ &&で連結実行（音声システムが競合する可能性）
+python voice-systems/gemini-tts/quick_tts_test.py "..." && osascript -e '...'
+
+# ❌ 1つのBashコマンドで両方実行（絶対禁止）
+Bash(osascript -e '...' && python voice-systems/gemini-tts/quick_tts_test.py "...")
+```
+
+**正しい実行方法**:
+```bash
+# ✅ 1つ目のBashコマンド：音声を先に実行
+Bash(python voice-systems/gemini-tts/quick_tts_test.py "処理完了")
+
+# ✅ 2つ目のBashコマンド：必要に応じてosascript実行
+Bash(osascript -e 'display notification "完了" with title "Claude Code" sound name "Tink"')
 ```
 
 ### 状況別TTS使い分けルール
@@ -193,14 +242,14 @@ Located in `voice-systems/openai-realtime/`
 python voice-systems/openai-realtime/openai_realtime_test.py "Text to read aloud"
 ```
 
-#### Gemini TTS (複雑なタスク・処理完了通知用)
+#### Gemini TTS (複雑なタスクブランチ・処理完了通知用)
 Located in `voice-systems/gemini-tts/`
 
 **使用場面**:
 - ファイル作成・編集完了
 - 複数ステップの処理完了
 - 長時間処理の完了通知
-- 複雑なタスクの完了報告
+- 複雑なタスクブランチの完了報告
 
 **Files**:
 - `voice_notification.py`: Original Gemini TTS implementation

@@ -300,9 +300,9 @@ spec:
 apiVersion: haconiwa.dev/v1
 kind: Task
 metadata:
-  name: task_ai_strategy_01
+  name: feature/01_ai_strategy
 spec:
-  taskId: task_ai_strategy_01
+  taskId: feature/01_ai_strategy
   title: "AI Strategy Development"
   description: |
     ## AI Strategy Development
@@ -324,9 +324,9 @@ spec:
 apiVersion: haconiwa.dev/v1
 kind: Task
 metadata:
-  name: task_tech_architecture_02
+  name: feature-02_tech_architecture
 spec:
-  taskId: task_tech_architecture_02
+  taskId: feature-02_tech_architecture
   title: "Technical Architecture Review"
   description: |
     ## Technical Architecture Review
@@ -348,9 +348,9 @@ spec:
 apiVersion: haconiwa.dev/v1
 kind: Task
 metadata:
-  name: task_financial_planning_03
+  name: feature_03_financial_planning
 spec:
-  taskId: task_financial_planning_03
+  taskId: feature_03_financial_planning
   title: "Financial Planning & Analysis"
   description: |
     ## Financial Planning & Analysis
@@ -372,9 +372,9 @@ spec:
 apiVersion: haconiwa.dev/v1
 kind: Task
 metadata:
-  name: task_product_roadmap_04
+  name: bugfix/04_product_roadmap
 spec:
-  taskId: task_product_roadmap_04
+  taskId: bugfix/04_product_roadmap
   title: "Product Roadmap Development"
   description: |
     ## Product Roadmap Development
@@ -396,9 +396,9 @@ spec:
 apiVersion: haconiwa.dev/v1
 kind: Task
 metadata:
-  name: task_ai_core_engine_05
+  name: hotfix/05_ai_core_engine
 spec:
-  taskId: task_ai_core_engine_05
+  taskId: hotfix/05_ai_core_engine
   title: "AI Core Engine Enhancement"
   description: |
     ## AI Core Engine Enhancement
@@ -420,9 +420,9 @@ spec:
 apiVersion: haconiwa.dev/v1
 kind: Task
 metadata:
-  name: task_backend_optimization_06
+  name: enhancement/06_backend_optimization
 spec:
-  taskId: task_backend_optimization_06
+  taskId: enhancement/06_backend_optimization
   title: "Backend Performance Optimization"
   description: |
     ## Backend Performance Optimization
@@ -444,9 +444,9 @@ spec:
 apiVersion: haconiwa.dev/v1
 kind: Task
 metadata:
-  name: task_frontend_innovation_07
+  name: refactor/07_frontend_innovation
 spec:
-  taskId: task_frontend_innovation_07
+  taskId: refactor/07_frontend_innovation
   title: "Frontend Innovation Research"
   description: |
     ## Frontend Innovation Research
@@ -468,9 +468,9 @@ spec:
 apiVersion: haconiwa.dev/v1
 kind: Task
 metadata:
-  name: task_devops_automation_08
+  name: docs/08_devops_automation
 spec:
-  taskId: task_devops_automation_08
+  taskId: docs/08_devops_automation
   title: "DevOps Automation Enhancement"
   description: |
     ## DevOps Automation Enhancement
@@ -492,9 +492,9 @@ spec:
 apiVersion: haconiwa.dev/v1
 kind: Task
 metadata:
-  name: task_security_audit_09
+  name: test/09_security_audit
 spec:
-  taskId: task_security_audit_09
+  taskId: test/09_security_audit
   title: "Security Architecture Audit"
   description: |
     ## Security Architecture Audit
@@ -516,9 +516,9 @@ spec:
 apiVersion: haconiwa.dev/v1
 kind: Task
 metadata:
-  name: task_data_platform_10
+  name: perf/10_data_platform
 spec:
-  taskId: task_data_platform_10
+  taskId: perf/10_data_platform
   title: "Data Platform Development"
   description: |
     ## Data Platform Development
@@ -534,4 +534,148 @@ spec:
   spaceRef: "haconiwa-dev-company"
   priority: "high"
   worktree: true
-  branch: "data/platform-development" 
+  branch: "data/platform-development"
+
+---
+apiVersion: haconiwa.dev/v1
+kind: Task
+metadata:
+  name: feature/11_qa_framework
+spec:
+  taskId: feature/11_qa_framework
+  title: "QA Framework Modernization"
+  description: |
+    ## QA Framework Modernization
+    
+    Modernize testing and quality assurance framework.
+    
+    ### Requirements:
+    - Automated testing strategy
+    - CI/CD integration
+    - Test coverage improvement
+    - Quality metrics dashboard
+  assignee: "qa-manager-hayashi"
+  spaceRef: "haconiwa-dev-company"
+  priority: "high"
+  worktree: true
+  branch: "qa/framework-modernization"
+
+---
+apiVersion: haconiwa.dev/v1
+kind: Task
+metadata:
+  name: feature/12_documentation_system
+spec:
+  taskId: feature/12_documentation_system
+  title: "Documentation System Enhancement"
+  description: |
+    ## Documentation System Enhancement
+    
+    Build comprehensive documentation system for developers.
+    
+    ### Requirements:
+    - Interactive documentation
+    - API reference generation
+    - Tutorial system
+    - Documentation automation
+  assignee: "docs-lead-yamamoto"
+  spaceRef: "haconiwa-dev-company"
+  priority: "medium"
+  worktree: true
+  branch: "docs/system-enhancement"
+
+---
+apiVersion: haconiwa.dev/v1
+kind: Task
+metadata:
+  name: feature/13_community_platform
+spec:
+  taskId: feature/13_community_platform
+  title: "Community Platform Development"
+  description: |
+    ## Community Platform Development
+    
+    Develop platform for developer community engagement.
+    
+    ### Requirements:
+    - Community portal
+    - Developer resources
+    - Collaboration tools
+    - Knowledge sharing system
+  assignee: "community-ito"
+  spaceRef: "haconiwa-dev-company"
+  priority: "medium"
+  worktree: true
+  branch: "community/platform-development"
+
+---
+apiVersion: haconiwa.dev/v1
+kind: Task
+metadata:
+  name: feature/14_developer_tools
+spec:
+  taskId: feature/14_developer_tools
+  title: "Developer Tools Enhancement"
+  description: |
+    ## Developer Tools Enhancement
+    
+    Enhance internal developer tools and productivity.
+    
+    ### Requirements:
+    - CLI tools improvement
+    - IDE integrations
+    - Debug tools
+    - Performance profiling
+  assignee: "platform-kato"
+  spaceRef: "haconiwa-dev-company"
+  priority: "medium"
+  worktree: true
+  branch: "tools/developer-enhancement"
+
+---
+apiVersion: haconiwa.dev/v1
+kind: Task
+metadata:
+  name: feature/15_operations_optimization
+spec:
+  taskId: feature/15_operations_optimization
+  title: "Operations Process Optimization"
+  description: |
+    ## Operations Process Optimization
+    
+    Optimize operational processes and workflows.
+    
+    ### Requirements:
+    - Process automation
+    - Workflow optimization
+    - Resource allocation
+    - Efficiency metrics
+  assignee: "vpo-watanabe"
+  spaceRef: "haconiwa-dev-company"
+  priority: "high"
+  worktree: true
+  branch: "ops/process-optimization"
+
+---
+apiVersion: haconiwa.dev/v1
+kind: Task
+metadata:
+  name: feature/16_engineering_excellence
+spec:
+  taskId: feature/16_engineering_excellence
+  title: "Engineering Excellence Initiative"
+  description: |
+    ## Engineering Excellence Initiative
+    
+    Drive engineering excellence across all teams.
+    
+    ### Requirements:
+    - Best practices standardization
+    - Code quality improvement
+    - Team productivity optimization
+    - Technical debt management
+  assignee: "vpe-sato"
+  spaceRef: "haconiwa-dev-company"
+  priority: "high"
+  worktree: true
+  branch: "engineering/excellence-initiative" 

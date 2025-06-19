@@ -105,16 +105,16 @@ else
     TEST_PASSED=false
 fi
 
-# ステップ5: タスク割り当ての検証
-print_step "🔍 ステップ5: タスク割り当ての検証"
-# Space CRDの仕様に基づいてタスクディレクトリが作成される
+# ステップ5: タスクブランチ割り当ての検証
+print_step "🔍 ステップ5: タスクブランチ割り当ての検証"
+# Space CRDの仕様に基づいてタスクブランチディレクトリが作成される
 TASK_DIR="./test-world-multiroom-tasks/tasks"
 if [ -d "$TASK_DIR" ]; then
     ASSIGNMENT_COUNT=$(find "$TASK_DIR" -name "agent_assignment.json" 2>/dev/null | wc -l)
-    echo "   タスク割り当て数: $ASSIGNMENT_COUNT"
+    echo "   タスクブランチ割り当て数: $ASSIGNMENT_COUNT"
     
     if [ "$ASSIGNMENT_COUNT" -gt 0 ]; then
-        check_result "タスク割り当てが確認できました"
+        check_result "タスクブランチ割り当てが確認できました"
         
         # サンプル割り当てを表示
         echo "   割り当ての例:"
@@ -126,17 +126,17 @@ if [ -d "$TASK_DIR" ]; then
             fi
         ' _ {} \; | head -3
     else
-        check_result "タスク割り当てが見つかりません"
+        check_result "タスクブランチ割り当てが見つかりません"
         TEST_PASSED=false
     fi
 else
-    echo "   タスクディレクトリが見つかりません"
+    echo "   タスクブランチディレクトリが見つかりません"
     TEST_PASSED=false
 fi
 
 # ステップ6: ペインの作業ディレクトリ検証
 print_step "🔍 ステップ6: ペインの作業ディレクトリ検証"
-# タスク/スタンバイディレクトリのペインを正確にカウント
+# タスクブランチ/スタンバイディレクトリのペインを正確にカウント
 PANES_IN_TASKS=0
 PANES_IN_STANDBY=0
 for window in $(tmux list-windows -t "$SESSION_NAME" -F '#{window_index}' 2>/dev/null); do
@@ -146,7 +146,7 @@ for window in $(tmux list-windows -t "$SESSION_NAME" -F '#{window_index}' 2>/dev
     PANES_IN_STANDBY=$((PANES_IN_STANDBY + WINDOW_STANDBY))
 done
 
-echo "   タスクディレクトリのペイン数: $PANES_IN_TASKS"
+echo "   タスクブランチディレクトリのペイン数: $PANES_IN_TASKS"
 echo "   スタンバイディレクトリのペイン数: $PANES_IN_STANDBY"
 
 if [ "$PANES_IN_TASKS" -gt 0 ] || [ "$PANES_IN_STANDBY" -gt 0 ]; then

@@ -116,7 +116,7 @@ class TestTaskAssignments(unittest.TestCase):
         self.space_manager.set_task_assignments(self.mock_task_assignments)
     
     def test_task_assignment_table_shows_actual_tasks(self):
-        """Task Assignmentsテーブルで実際のタスクが表示されることをテスト"""
+        """Task Assignmentsテーブルで実際のタスクブランチが表示されることをテスト"""
         table = self.space_manager._create_task_assignment_table(self.mock_task_assignments)
         
         # テーブル内容を文字列として取得
@@ -127,10 +127,10 @@ class TestTaskAssignments(unittest.TestCase):
         console.print(table)
         table_output = console.file.getvalue()
         
-        # 実際のタスク名が表示されることを確認
-        self.assertIn("frontend-ui-design", table_output, "フロントエンドタスクが表示される必要がある")
-        self.assertIn("executive-dashboard", table_output, "Executiveタスクが表示される必要がある")
-        self.assertIn("business-intelligence", table_output, "CTOタスクが表示される必要がある")
+        # 実際のタスクブランチ名が表示されることを確認
+        self.assertIn("frontend-ui-design", table_output, "フロントエンドタスクブランチが表示される必要がある")
+        self.assertIn("executive-dashboard", table_output, "Executiveタスクブランチが表示される必要がある")
+        self.assertIn("business-intelligence", table_output, "CTOタスクブランチが表示される必要がある")
         
         # standby の数が減っていることを確認
         standby_count = table_output.count("standby")
@@ -171,18 +171,18 @@ class TestTaskAssignments(unittest.TestCase):
         self.assertLess(role_pos, agent_pos, "Role列がAgent列より前にある必要がある")
     
     def test_get_task_by_assignee_returns_correct_task(self):
-        """assigneeによるタスク取得が正しく動作することをテスト"""
-        # タスク割り当てを設定
+        """assigneeによるタスクブランチ取得が正しく動作することをテスト"""
+        # タスクブランチ割り当てを設定
         self.space_manager.set_task_assignments(self.mock_task_assignments)
         
-        # CEO のタスクを取得
+        # CEO のタスクブランチを取得
         ceo_task = self.space_manager.get_task_by_assignee("org05-ceo-re")
-        self.assertIsNotNone(ceo_task, "CEO にタスクが割り当てられている必要がある")
-        self.assertEqual(ceo_task["task_name"], "executive-dashboard", "CEO に正しいタスクが割り当てられている必要がある")
+        self.assertIsNotNone(ceo_task, "CEO にタスクブランチが割り当てられている必要がある")
+        self.assertEqual(ceo_task["task_name"], "executive-dashboard", "CEO に正しいタスクブランチが割り当てられている必要がある")
         
         # 存在しないエージェントの場合
         nonexistent_task = self.space_manager.get_task_by_assignee("nonexistent-agent")
-        self.assertIsNone(nonexistent_task, "存在しないエージェントにはタスクがない")
+        self.assertIsNone(nonexistent_task, "存在しないエージェントにはタスクブランチがない")
 
 
 class TestSpaceManagerFloorIntegration(unittest.TestCase):

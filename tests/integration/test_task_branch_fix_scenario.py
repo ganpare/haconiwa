@@ -3,7 +3,7 @@
 タスクブランチ修正のシナリオテスト:
 1. YAMLでdefaultBranch: "dev"を指定した設定を適用
 2. リポジトリがクローンされ、devブランチがチェックアウトされることを確認
-3. タスクワークツリーが全てdevブランチから作成されることを確認
+3. タスクブランチワークツリーが全てdevブランチから作成されることを確認
 4. 既存の誤ったブランチがあれば自動修正されることを確認
 """
 
@@ -141,7 +141,7 @@ class TaskBranchFixScenarioTest:
             yaml.dump(world_yaml, f)
             f.write("\n---\n\n")
         
-        # タスク設定を追加
+        # タスクブランチ設定を追加
         tasks = [
             {"name": "task_test_branch_01", "description": "Test task 1", "branch": "test/branch-fix-01"},
             {"name": "task_test_branch_02", "description": "Test task 2", "branch": "test/branch-fix-02"},
@@ -259,16 +259,16 @@ class TaskBranchFixScenarioTest:
         
         tasks_dir = self.world_path / "tasks"
         if not tasks_dir.exists():
-            print(f"❌ タスクディレクトリが見つかりません: {tasks_dir}")
+            print(f"❌ タスクブランチディレクトリが見つかりません: {tasks_dir}")
             return {"success": False, "tasks": {}}
         
         task_results = {}
         all_from_dev = True
         
-        # 各タスクディレクトリを確認
+        # 各タスクブランチディレクトリを確認
         for task_dir in tasks_dir.iterdir():
             if task_dir.is_dir() and task_dir.name.startswith("task_"):
-                print(f"\n   タスク: {task_dir.name}")
+                print(f"\n   タスクブランチ: {task_dir.name}")
                 
                 # 現在のブランチを確認
                 cmd = ["git", "branch", "--show-current"]
@@ -350,7 +350,7 @@ class TaskBranchFixScenarioTest:
         
         return {
             "success": result["success"],
-            "message": "全てのタスクがdevブランチから作成されました" if result["success"] else "一部のタスクがdevブランチから作成されていません",
+            "message": "全てのタスクブランチがdevブランチから作成されました" if result["success"] else "一部のタスクブランチがdevブランチから作成されていません",
             "details": result
         }
     
@@ -367,7 +367,7 @@ class TaskBranchFixScenarioTest:
         # タスクブランチの確認
         task_results = results.get("task_branches", {})
         if not task_results.get("success"):
-            failures.append(f"全てのタスクがdevブランチから作成されていません: {task_results.get('tasks_from_dev')}/{task_results.get('total_tasks')}")
+            failures.append(f"全てのタスクブランチがdevブランチから作成されていません: {task_results.get('tasks_from_dev')}/{task_results.get('total_tasks')}")
         
         # 自動修正の確認
         fix_results = results.get("branch_fix", {})

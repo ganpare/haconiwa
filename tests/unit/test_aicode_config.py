@@ -190,7 +190,7 @@ class TestAICodeConfigIntegration:
     @patch('haconiwa.task.manager.Path')
     @patch('shutil.copy2')
     def test_task_creation_with_aicode_config(self, mock_copy, mock_path, mock_subprocess):
-        """タスク作成時のAICodeConfig適用テスト"""
+        """タスクブランチ作成時のAICodeConfig適用テスト"""
         # サブプロセスのモック（git worktree作成）
         mock_subprocess.return_value.returncode = 0
         
@@ -246,7 +246,7 @@ class TestAICodeConfigIntegration:
                     }
                 }
                 
-                # タスクを作成
+                # タスクブランチを作成
                 config = {
                     "name": "test-task",
                     "branch": "test/branch",

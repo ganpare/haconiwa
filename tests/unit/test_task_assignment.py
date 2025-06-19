@@ -304,11 +304,11 @@ class TestTaskAssignment:
         task.metadata = Mock()
         task.metadata.name = "task_auto_claude_01"
         task.spec = Mock()
-        task.spec.description = """## タスク: Claude自動実行機能の実装
+        task.spec.description = """## タスクブランチ: Claude自動実行機能の実装
 
 ### 概要
-haconiwaで開発タスクを割り当ててapplyすると、tmuxのペインにてclaudeコマンドが自動で打ち込まれ、
-タスクディスクリプションのmdファイル（YAMLからコピーされる）を読み取って実装する機能を開発する。
+haconiwaで開発タスクブランチを割り当ててapplyすると、tmuxのペインにてclaudeコマンドが自動で打ち込まれ、
+タスクブランチディスクリプションのmdファイル（YAMLからコピーされる）を読み取って実装する機能を開発する。
 """
         
         task_dir = Path("/tmp/simple-dev-world/tasks/task_auto_claude_01")

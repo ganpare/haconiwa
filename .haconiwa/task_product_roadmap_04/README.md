@@ -2,7 +2,7 @@
 
 ## 基本情報
 - **エージェントID**: `vpp-suzuki`
-- **タスク名**: `task_product_roadmap_04`
+- **タスクブランチ名**: `task_product_roadmap_04`
 - **割り当て日時**: 2025-06-14T21:45:59.459459
 - **ステータス**: active
 
@@ -10,7 +10,7 @@
 - **スペースセッション**: `haconiwa-dev-company`
 - **tmuxウィンドウ**: None
 - **tmuxペイン**: None
-- **タスクディレクトリ**: `haconiwa-dev-world/tasks/task_product_roadmap_04`
+- **タスクブランチディレクトリ**: `haconiwa-dev-world/tasks/task_product_roadmap_04`
 
 ## エージェント役割
 **役割**: 未定義

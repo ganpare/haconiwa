@@ -69,7 +69,7 @@ haconiwa tool parallel-dev claude --from-yaml parallel-dev.yaml
 | `--prompt-file` | - | プロンプトを含むテキストファイル | - |
 | `--from-yaml` | - | YAML設定ファイル | - |
 | `--max-concurrent` | `-m` | 同時実行数 | 3 |
-| `--timeout` | `-t` | タスクごとのタイムアウト（秒） | 60 |
+| `--timeout` | `-t` | タスクブランチごとのタイムアウト（秒） | 60 |
 | `--dry-run` | - | 実行内容の確認のみ | False |
 | `--output-dir` | `-o` | 結果出力ディレクトリ | ./parallel-dev-results |
 | `--permission-mode` | - | 権限モード | acceptEdits |
@@ -101,7 +101,7 @@ haconiwa tool parallel-dev claude \
 ### 実行状態の確認
 
 ```bash
-# アクティブなタスクの状態を表示
+# アクティブなタスクブランチの状態を表示
 haconiwa tool parallel-dev status
 ```
 
@@ -115,10 +115,10 @@ haconiwa tool parallel-dev history
 haconiwa tool parallel-dev history --limit 20
 ```
 
-### タスクのキャンセル（将来実装予定）
+### タスクブランチのキャンセル（将来実装予定）
 
 ```bash
-# 特定のタスクをキャンセル
+# 特定のタスクブランチをキャンセル
 haconiwa tool parallel-dev cancel task-001
 ```
 
@@ -141,8 +141,8 @@ parallel-dev-results/
 
 - ファイル数とプロンプト数が一致しない場合はエラー
 - APIキーが設定されていない場合は環境変数`ANTHROPIC_API_KEY`を確認
-- 個別のタスクが失敗しても他のタスクは継続実行
-- タイムアウトしたタスクは`timeout`ステータスで記録
+- 個別のタスクブランチが失敗しても他のタスクブランチは継続実行
+- タイムアウトしたタスクブランチは`timeout`ステータスで記録
 
 ## ベストプラクティス
 
@@ -150,4 +150,4 @@ parallel-dev-results/
 2. **タイムアウトの設定**: 複雑な編集には長めのタイムアウトを設定
 3. **ドライラン**: 大量のファイルを編集する前に`--dry-run`で確認
 4. **YAML設定の活用**: 繰り返し実行する編集はYAMLファイルで管理
-5. **エラーログの確認**: 失敗したタスクはログで詳細を確認
+5. **エラーログの確認**: 失敗したタスクブランチはログで詳細を確認

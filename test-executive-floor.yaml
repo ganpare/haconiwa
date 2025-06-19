@@ -141,7 +141,7 @@ spec:
                 description: "C-level executives workspace on the 2nd floor"
 
 ---
-# タスク割り当て（18エージェントに配布）
+# タスクブランチ割り当て（18エージェントに配布）
 apiVersion: haconiwa.dev/v1
 kind: Task
 metadata:

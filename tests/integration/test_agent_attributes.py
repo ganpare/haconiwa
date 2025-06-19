@@ -179,11 +179,11 @@ class TestAgentAttributes:
         assert env['CLAUDE_CODE_ENABLE_TELEMETRY'] == '1'
 
     def test_task_level_agent_config(self):
-        """タスクレベルでエージェント設定が定義できることをテスト"""
-        # YAMLからタスク設定を取得
+        """タスクブランチレベルでエージェント設定が定義できることをテスト"""
+        # YAMLからタスクブランチ設定を取得
         task = self.test_yaml_content['spec']['nations'][0]['cities'][0]['villages'][0]['companies'][0]['organizations'][0]['tasks'][0]
         
-        # タスクレベルのエージェント設定の存在を確認
+        # タスクブランチレベルのエージェント設定の存在を確認
         assert 'agentConfig' in task
         agent_config = task['agentConfig']
         
@@ -204,11 +204,11 @@ class TestAgentAttributes:
         task_manager = TaskManager()
         claude_integration = ClaudeCodeIntegration()
         
-        # テスト用のタスクディレクトリを作成
+        # テスト用のタスクブランチディレクトリを作成
         task_dir = Path(self.temp_dir) / "test-task"
         task_dir.mkdir(parents=True)
         
-        # 会社デフォルト設定とタスク設定をマージしてClaude設定を作成
+        # 会社デフォルト設定とタスクブランチ設定をマージしてClaude設定を作成
         company_defaults = self.test_yaml_content['spec']['nations'][0]['cities'][0]['villages'][0]['companies'][0]['agentDefaults']
         task_config = self.test_yaml_content['spec']['nations'][0]['cities'][0]['villages'][0]['companies'][0]['organizations'][0]['tasks'][0]['agentConfig']
         
@@ -236,8 +236,8 @@ class TestAgentAttributes:
         # デフォルト + 追加パーミッションがマージされていることを確認
         allow_perms = permissions['allow']
         assert 'Bash(npm run lint)' in allow_perms  # デフォルトから
-        assert 'Bash(npm run dev)' in allow_perms   # タスクレベルから
-        assert 'Read(package.json)' in allow_perms  # タスクレベルから
+        assert 'Bash(npm run dev)' in allow_perms   # タスクブランチレベルから
+        assert 'Read(package.json)' in allow_perms  # タスクブランチレベルから
         
         # 拒否設定の確認
         deny_perms = permissions['deny']
@@ -254,7 +254,7 @@ class TestAgentAttributes:
         
         claude_integration = ClaudeCodeIntegration()
         
-        # テスト用のタスクディレクトリを作成
+        # テスト用のタスクブランチディレクトリを作成
         task_dir = Path(self.temp_dir) / "non-claude-task"
         task_dir.mkdir(parents=True)
         

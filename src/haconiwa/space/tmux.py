@@ -350,7 +350,7 @@ class TmuxSession:
                     readme_path = role_path / "README.md"
                     if not readme_path.exists() or not update_mode:
                         org_info = f"\n## 組織: {org['org_name']}" if org['org_name'] else ""
-                        task_info = f"\n## タスク: {org['task_name']}" if org['task_name'] else ""
+                        task_info = f"\n## タスクブランチ: {org['task_name']}" if org['task_name'] else ""
                         
                         readme_content = f"""# {org['id'].upper()} - {role.upper()}{org_info}{task_info}
 
@@ -360,7 +360,7 @@ class TmuxSession:
 
 ### 使用方法
 - このデスクでプロジェクトの作業を行ってください
-- 各役割に応じたタスクを管理してください
+- 各役割に応じたタスクブランチを管理してください
 - 他の組織・役割との連携を意識してください
 
 ### 生成日時
@@ -425,7 +425,7 @@ class TmuxSession:
             if org['org_name']:
                 display_parts.append(f"組織: {org['org_name']}")
             if org['task_name']:
-                display_parts.append(f"タスク: {org['task_name']}")
+                display_parts.append(f"タスクブランチ: {org['task_name']}")
             display_text = " - ".join(display_parts)
             
             self._run_tmux_command(['send-keys', '-t', pane_target, 

@@ -2,7 +2,7 @@
 
 ## 基本情報
 - **エージェントID**: `ceo-motoki`
-- **タスク名**: `task_ai_strategy_01`
+- **タスクブランチ名**: `task_ai_strategy_01`
 - **割り当て日時**: 2025-06-14T18:33:02.972928
 - **ステータス**: active
 
@@ -10,7 +10,7 @@
 - **スペースセッション**: `haconiwa-dev-company`
 - **tmuxウィンドウ**: None
 - **tmuxペイン**: None
-- **タスクディレクトリ**: `haconiwa-dev-world/tasks/task_ai_strategy_01`
+- **タスクブランチディレクトリ**: `haconiwa-dev-world/tasks/task_ai_strategy_01`
 
 ## エージェント役割
 **役割**: 未定義

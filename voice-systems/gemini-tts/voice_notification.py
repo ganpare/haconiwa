@@ -246,7 +246,7 @@ def main():
     """メイン関数"""
     if len(sys.argv) < 2:
         print("使用方法: python voice_notification.py <メッセージ> [タイトル] [サウンド]")
-        print("例: python voice_notification.py 'タスク完了しました' 'Claude Code' 'Funk'")
+        print("例: python voice_notification.py 'タスクブランチ完了しました' 'Claude Code' 'Funk'")
         sys.exit(1)
     
     message = sys.argv[1]

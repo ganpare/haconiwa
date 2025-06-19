@@ -677,7 +677,7 @@ class TaskManager:
 
 ## 基本情報
 - **エージェントID**: `{assignee}`
-- **タスク名**: `{task_name}`
+- **タスクブランチ名**: `{task_name}`
 - **割り当て日時**: {assignment_info['assigned_at']}
 - **ステータス**: {assignment_info['status']}
 
@@ -685,7 +685,7 @@ class TaskManager:
 - **スペースセッション**: `{assignment_info['space_session']}`
 - **tmuxウィンドウ**: {assignment_info['tmux_window']}
 - **tmuxペイン**: {assignment_info['tmux_pane']}
-- **タスクディレクトリ**: `{assignment_info['task_directory']}`
+- **タスクブランチディレクトリ**: `{assignment_info['task_directory']}`
 
 ## エージェント役割
 {self._get_agent_role_description(assignee)}
