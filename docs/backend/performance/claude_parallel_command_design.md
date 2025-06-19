@@ -15,7 +15,7 @@ haconiwa tool parallel-dev
 ```bash
 haconiwa tool parallel-dev claude    # Claude Code SDKでの並列実行
 haconiwa tool parallel-dev status    # 実行状況確認
-haconiwa tool parallel-dev cancel    # タスクキャンセル
+haconiwa tool parallel-dev cancel    # タスクブランチキャンセル
 haconiwa tool parallel-dev history   # 実行履歴表示
 ```
 
@@ -116,7 +116,7 @@ haconiwa tool parallel-dev claude \
 # 実行状態確認
 haconiwa tool parallel-dev status
 
-# 特定タスクのキャンセル
+# 特定タスクブランチのキャンセル
 haconiwa tool parallel-dev cancel task-123
 
 # 実行履歴表示
@@ -170,7 +170,7 @@ parallel-dev-results/
 - ファイル数とプロンプト数が一致しない場合はエラー
 - APIキーが設定されていない場合はエラー
 - ファイルが存在しない場合は警告を表示して続行
-- 個別タスクの失敗は記録し、他のタスクは継続実行
+- 個別タスクブランチの失敗は記録し、他のタスクブランチは継続実行
 
 ## 内部実装の概要
 

@@ -88,8 +88,8 @@ class CRDApplier:
             # Display header
             console.print("\n")
             console.print(Panel.fit(
-                "[bold cyan]🚀 Haconiwa CRD Applier[/bold cyan]\n"
-                f"[dim]Applying {len(crds)} resources...[/dim]",
+                "[bold cyan]🚀 Haconiwa CRD設定適用[/bold cyan]\n"
+                f"[dim]{len(crds)} 個の設定を適用中...[/dim]",
                 style="cyan"
             ))
             console.print()
@@ -111,10 +111,10 @@ class CRDApplier:
                     crd_categories[crd_type].append(crd)
             
             # Display resource summary
-            summary_table = Table(title="📋 Resource Summary", show_header=True, header_style="bold magenta")
-            summary_table.add_column("Resource Type", style="cyan")
-            summary_table.add_column("Count", justify="right", style="green")
-            summary_table.add_column("Names", style="dim")
+            summary_table = Table(title="📋 設定概要", show_header=True, header_style="bold magenta")
+            summary_table.add_column("設定タイプ", style="cyan")
+            summary_table.add_column("数", justify="right", style="green")
+            summary_table.add_column("名前", style="dim")
             
             for category, items in crd_categories.items():
                 if items:
@@ -136,13 +136,13 @@ class CRDApplier:
                 console=console
             ) as progress:
                 
-                main_task = progress.add_task("[cyan]Applying resources...", total=len(crds))
+                main_task = progress.add_task("[cyan]設定適用中...", total=len(crds))
                 
                 for i, crd in enumerate(crds):
                     crd_type = type(crd).__name__.replace("CRD", "")
                     task_desc = f"[{crd_type}] {crd.metadata.name}"
                     
-                    current_task = progress.add_task(f"Applying {task_desc}", total=1)
+                    current_task = progress.add_task(f"{task_desc} を適用中", total=1)
                     
                     try:
                         start_time = time.time()
@@ -173,7 +173,7 @@ class CRDApplier:
                         results.append(False)
                         progress.update(current_task, completed=1)
                         progress.update(main_task, advance=1)
-                        console.print(f"  ❌ {task_desc} [red]FAILED: {str(e)[:50]}...[/red]")
+                        console.print(f"  ❌ {task_desc} [red]失敗: {str(e)[:50]}...[/red]")
                     
                     progress.remove_task(current_task)
             
@@ -181,8 +181,8 @@ class CRDApplier:
             if space_sessions:
                 console.print()
                 console.print(Panel.fit(
-                    "[bold yellow]🔄 Post-Processing Phase[/bold yellow]\n"
-                    "[dim]Updating task assignments and agent panes...[/dim]",
+                    "[bold yellow]🔄 後処理フェーズ[/bold yellow]\n"
+                    "[dim]タスクブランチ割り当てとエージェントデスクを更新中...[/dim]",
                     style="yellow"
                 ))
                 
@@ -193,16 +193,16 @@ class CRDApplier:
                 ) as progress:
                     
                     # Task assignment updates
-                    task1 = progress.add_task("[yellow]Re-updating task assignments...")
+                    task1 = progress.add_task("[yellow]タスクブランチ割り当てを再更新中...")
                     self._update_all_space_task_assignments(space_sessions)
                     progress.update(task1, completed=1)
-                    console.print("  ✅ Task assignments updated")
+                    console.print("  ✅ タスクブランチ割り当てを更新しました")
                     
                     # Agent pane updates  
-                    task2 = progress.add_task("[yellow]Updating agent pane directories...")
+                    task2 = progress.add_task("[yellow]エージェントデスクディレクトリを更新中...")
                     updated_panes = self._update_all_agent_pane_directories(space_sessions)
                     progress.update(task2, completed=1)
-                    console.print(f"  ✅ Updated {updated_panes} agent panes")
+                    console.print(f"  ✅ {updated_panes} 個のエージェントデスクを更新しました")
             
             # Final summary
             console.print()
@@ -212,11 +212,11 @@ class CRDApplier:
             if success_count == total_count:
                 summary_style = "green"
                 summary_icon = "🎉"
-                summary_text = "All resources applied successfully!"
+                summary_text = "全設定の適用が成功しました！"
             else:
                 summary_style = "red"
                 summary_icon = "⚠️"
-                summary_text = f"{success_count}/{total_count} resources applied successfully"
+                summary_text = f"{success_count}/{total_count} 個の設定の適用が成功しました"
             
             console.print(Panel.fit(
                 f"[bold {summary_style}]{summary_icon} {summary_text}[/bold {summary_style}]",
@@ -251,8 +251,12 @@ class CRDApplier:
                 logger.info(f"🔄 Running log-based pane update for space: {space_ref}")
                 
                 # First try the new direct assignment method
-                base_path = Path(f"./{space_ref.replace('-company', '-world')}")
-                if not base_path.exists():
+                # Get Organization base path for this space
+                org_base_path = self._get_organization_base_path(space_ref)
+                if org_base_path:
+                    base_path = Path(org_base_path)
+                else:
+                    # Fallback to space_ref directory
                     base_path = Path(f"./{space_ref}")
                 
                 if base_path.exists():
@@ -394,7 +398,7 @@ class CRDApplier:
             space_manager.set_task_assignments(task_assignments)
             
             # Create space infrastructure (32-pane tmux session with task-centric structure)
-            logger.info("Creating 32-pane tmux session with tasks/ directory structure...")
+            logger.info("32ペイン tmuxセッションをtasks/ディレクトリ構造で作成中...")
             
             # Pass force_clone flag to SpaceManager
             space_manager._force_clone = self.force_clone
@@ -403,14 +407,14 @@ class CRDApplier:
             
             if result:
                 # Simple success message - details are shown by SpaceManager's Rich display
-                logger.info(f"✅ Space CRD {crd.metadata.name} applied successfully")
+                logger.info(f"✅ Space CRD {crd.metadata.name} の適用が成功しました")
             else:
-                logger.error(f"❌ Failed to apply Space CRD {crd.metadata.name}")
+                logger.error(f"❌ Space CRD {crd.metadata.name} の適用に失敗しました")
             
             return result
             
         except Exception as e:
-            logger.error(f"Exception while applying Space CRD {crd.metadata.name}: {e}")
+            logger.error(f"Space CRD {crd.metadata.name} 適用中に例外が発生: {e}")
             return False
     
     def _apply_hierarchical_legal_framework(self, crd: SpaceCRD, config: dict) -> bool:
@@ -434,22 +438,22 @@ class CRDApplier:
                 
                 if hasattr(nation, 'legalFramework') and getattr(nation.legalFramework, 'enabled', False):
                     legal_framework_enabled = True
-                    logger.info(f"✅ Legal framework enabled for nation: {nation.id}")
+                    logger.info(f"✅ 国 {nation.id} でリーガルフレームワークが有効化されました")
                     break
             
             if not legal_framework_enabled:
-                logger.info("❌ Hierarchical Legal Framework not enabled, skipping")
+                logger.info("❌ 階層リーガルフレームワークが無効のため、スキップします")
                 return True
             
             # Display legal framework creation progress
-            console.print("    [bold blue]📋 Creating Hierarchical Legal Framework...[/bold blue]")
+            console.print("    [bold blue]📋 階層リーガルフレームワークを作成中...[/bold blue]")
             
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
                 console=console
             ) as progress:
-                task = progress.add_task("[blue]Setting up legal framework...", total=None)
+                task = progress.add_task("[blue]リーガルフレームワークをセットアップ中...", total=None)
                 
                 # Import legal framework
                 from ..legal.framework import HierarchicalLegalFramework
@@ -475,24 +479,24 @@ class CRDApplier:
                         logger.info(f"🔍   City {j}: {city.get('id')} - Legal framework enabled: {city.get('legalFramework', {}).get('enabled', False)}")
                 
                 # Apply framework
-                progress.update(task, description="[blue]Creating law directories...")
+                progress.update(task, description="[blue]法務ディレクトリを作成中...")
                 success = framework.create_framework_from_yaml(crd_dict)
                 
                 progress.update(task, completed=1)
             
             if success:
-                console.print(f"    ✅ Legal framework created: {len(framework.created_directories)} directories")
-                logger.info(f"✅ Hierarchical Legal Framework created successfully")
-                logger.info(f"   📁 Law directories: {len(framework.created_directories)}")
-                logger.info(f"   🏛️ Framework base: {base_path}")
+                console.print(f"    ✅ リーガルフレームワークを作成しました: {len(framework.created_directories)} ディレクトリ")
+                logger.info(f"✅ 階層リーガルフレームワークの作成が成功しました")
+                logger.info(f"   📁 法務ディレクトリ: {len(framework.created_directories)}")
+                logger.info(f"   🏛️ フレームワーク基準ディレクトリ: {base_path}")
             else:
-                console.print("    ❌ Legal framework creation failed")
-                logger.warning("⚠️ Hierarchical Legal Framework creation failed")
+                console.print("    ❌ リーガルフレームワークの作成に失敗しました")
+                logger.warning("⚠️ 階層リーガルフレームワークの作成に失敗しました")
                 
             return success
             
         except Exception as e:
-            logger.error(f"Failed to apply Hierarchical Legal Framework: {e}")
+            logger.error(f"階層リーガルフレームワークの適用に失敗: {e}")
             return False
 
     def _convert_space_crd_to_dict(self, crd: SpaceCRD) -> dict:
@@ -1032,6 +1036,21 @@ class CRDApplier:
                 framework_dict[key] = getattr(legal_framework, attr)
         
         return framework_dict
+    
+    def _get_organization_base_path(self, space_ref: str) -> str:
+        """Get Organization base path for the given space_ref"""
+        try:
+            # Find Organization CRD that matches the space_ref company
+            for resource_key, resource in self.applied_resources.items():
+                if resource_key.startswith("Organization/") and hasattr(resource, 'spec'):
+                    # Check if this organization references the space
+                    # For now, use a simple naming convention match
+                    if space_ref in resource_key or resource.spec.basePath:
+                        return resource.spec.basePath
+            return None
+        except Exception as e:
+            logger.error(f"Error getting organization base path: {e}")
+            return None
     
     def get_applied_resources(self) -> dict:
         """Get list of applied resources"""

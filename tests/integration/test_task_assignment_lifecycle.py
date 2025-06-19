@@ -468,7 +468,7 @@ class TestTaskAssignmentLifecycle:
         with standby_readme.open('r', encoding='utf-8') as f:
             readme_content = f.read()
             assert "エージェント待機場所" in readme_content, "Standby README should contain appropriate content"
-            assert "タスクが割り当てられていない" in readme_content, "Standby README should explain purpose"
+            assert "タスクブランチが割り当てられていない" in readme_content, "Standby README should explain purpose"
         
         # Step 8: Test space list command
         print("📋 Step 8: Testing space list command")

@@ -9,7 +9,7 @@
 ```bash
 haconiwa tool parallel-dev claude    # Claude Code SDKでの並列実行
 haconiwa tool parallel-dev status    # 実行状況確認
-haconiwa tool parallel-dev cancel    # タスクキャンセル
+haconiwa tool parallel-dev cancel    # タスクブランチキャンセル
 haconiwa tool parallel-dev history   # 実行履歴表示
 ```
 
@@ -60,23 +60,23 @@ haconiwa tool parallel-dev claude --from-yaml parallel-dev.yaml
 ### 2. 実行状況確認 (`tool parallel-dev status`)
 
 ```bash
-# 全タスクの状況確認
+# 全タスクブランチの状況確認
 haconiwa tool parallel-dev status
 
-# 特定タスクの詳細
+# 特定タスクブランチの詳細
 haconiwa tool parallel-dev status --task-id task-123
 
 # JSON形式での出力
 haconiwa tool parallel-dev status --format json
 ```
 
-### 3. タスクキャンセル (`tool parallel-dev cancel`)
+### 3. タスクブランチキャンセル (`tool parallel-dev cancel`)
 
 ```bash
-# 特定タスクのキャンセル
+# 特定タスクブランチのキャンセル
 haconiwa tool parallel-dev cancel task-123
 
-# 全タスクのキャンセル
+# 全タスクブランチのキャンセル
 haconiwa tool parallel-dev cancel --all
 
 # 強制終了
@@ -269,7 +269,7 @@ parallel-dev-results/
 src/haconiwa/tool/parallel_dev/
 ├── __init__.py
 ├── executor.py         # メイン実行エンジン
-├── task_manager.py     # タスク管理
+├── task_manager.py     # タスクブランチ管理
 ├── session_manager.py  # セッション管理
 ├── claude_client.py    # Claude Code SDK ラッパー
 ├── progress_monitor.py # 進捗監視
@@ -299,16 +299,16 @@ class ParallelExecutor:
 #### TaskManager
 ```python
 class TaskManager:
-    """タスクのライフサイクル管理"""
+    """タスクブランチのライフサイクル管理"""
     
     def create_task(self, file_path: str, prompt: str) -> Task:
-        """タスクオブジェクトの作成"""
+        """タスクブランチオブジェクトの作成"""
     
     async def execute_task(self, task: Task) -> TaskResult:
-        """個別タスクの実行"""
+        """個別タスクブランチの実行"""
     
     def cancel_task(self, task_id: str) -> bool:
-        """タスクのキャンセル"""
+        """タスクブランチのキャンセル"""
 ```
 
 #### ClaudeClient
@@ -348,7 +348,7 @@ async def controlled_parallel_processing(
         async with semaphore:
             return await self.claude_client.process_file(file_path, prompt)
     
-    # 全タスクを作成
+    # 全タスクブランチを作成
     tasks = [
         asyncio.create_task(process_with_semaphore(file_path, prompt))
         for file_path, prompt in files_and_prompts

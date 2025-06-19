@@ -22,7 +22,7 @@ class TestYAMLConfigurations(unittest.TestCase):
         self.test_output_dir = Path("test_output")
         self.test_cases = [
             ("basic_executive_floor.yaml", "基本的なExecutive Floor テスト"),
-            ("heavy_task_assignment.yaml", "大量タスク割り当てテスト"),
+            ("heavy_task_assignment.yaml", "大量タスクブランチ割り当てテスト"),
             ("error_case_test.yaml", "エラーケーステスト"),
             ("minimal_config.yaml", "最小構成テスト"),
             ("full_structure_test.yaml", "完全構造テスト（nations階層、legalFramework含む）")
@@ -249,7 +249,7 @@ class TestYAMLConfigurations(unittest.TestCase):
                 for task in task_crds:
                     task_name = task['metadata']['name']
                     self.assertTrue(datetime_pattern.match(task_name),
-                                  f"タスク名 '{task_name}' が日時スタイル命名規則に従っていません")
+                                  f"タスクブランチ名 '{task_name}' が日時スタイル命名規則に従っていません")
                     
                     # 日時部分の妥当性確認（基本的なチェック）
                     datetime_part = task_name[:14]
@@ -324,7 +324,7 @@ class TestYAMLConfigurations(unittest.TestCase):
                         self.fail(f"{yaml_file} のExecutive Floor構成確認エラー: {e}")
     
     def test_task_assignments_structure(self):
-        """タスク割り当て構造が正しいことを確認"""
+        """タスクブランチ割り当て構造が正しいことを確認"""
         import yaml
         
         for yaml_file, description in self.test_cases:
@@ -342,18 +342,18 @@ class TestYAMLConfigurations(unittest.TestCase):
                             if doc and doc.get('kind') == 'Task':
                                 task_crds.append(doc)
                         
-                        if len(task_crds) > 0:  # タスクが定義されている場合のみテスト
-                            # Executive タスクの存在確認
+                        if len(task_crds) > 0:  # タスクブランチが定義されている場合のみテスト
+                            # Executive タスクブランチの存在確認
                             executive_tasks = []
                             for task in task_crds:
                                 assignee = task['spec'].get('assignee', '')
                                 if 'org05' in assignee and '-re' in assignee:
                                     executive_tasks.append(task)
                             
-                            # heavy_task_assignment.yamlとfull_structure_test.yamlの場合はExecutiveタスクを期待
+                            # heavy_task_assignment.yamlとfull_structure_test.yamlの場合はExecutiveタスクブランチを期待
                             if "heavy_task" in yaml_file:
                                 self.assertEqual(len(executive_tasks), 4, 
-                                              f"{yaml_file} にExecutiveタスクが4つありません")
+                                              f"{yaml_file} にExecutiveタスクブランチが4つありません")
                                 
                                 # 期待される assignee
                                 expected_assignees = ['org05-ceo-re', 'org05-cto-re', 'org05-coo-re', 'org05-assistant-re']
@@ -361,24 +361,24 @@ class TestYAMLConfigurations(unittest.TestCase):
                                 
                                 for expected in expected_assignees:
                                     self.assertIn(expected, actual_assignees,
-                                                f"{yaml_file} に {expected} のタスクがありません")
+                                                f"{yaml_file} に {expected} のタスクブランチがありません")
                             
                             elif "full_structure" in yaml_file:
                                 self.assertGreaterEqual(len(executive_tasks), 3, 
-                                              f"{yaml_file} にExecutiveタスクが3つ以上ありません")
+                                              f"{yaml_file} にExecutiveタスクブランチが3つ以上ありません")
                             
-                            # 各タスクの必須フィールドチェック
+                            # 各タスクブランチの必須フィールドチェック
                             for task in task_crds:
                                 spec = task.get('spec', {})
                                 self.assertIsNotNone(spec.get('assignee'), 
-                                                   f"タスク {task['metadata']['name']} にassigneeが設定されていません")
+                                                   f"タスクブランチ {task['metadata']['name']} にassigneeが設定されていません")
                                 self.assertIsNotNone(spec.get('branch'), 
-                                                   f"タスク {task['metadata']['name']} にbranchが設定されていません")
+                                                   f"タスクブランチ {task['metadata']['name']} にbranchが設定されていません")
                                 self.assertIsNotNone(spec.get('description'), 
-                                                   f"タスク {task['metadata']['name']} にdescriptionが設定されていません")
+                                                   f"タスクブランチ {task['metadata']['name']} にdescriptionが設定されていません")
                             
                     except Exception as e:
-                        self.fail(f"{yaml_file} のタスク割り当て構造確認エラー: {e}")
+                        self.fail(f"{yaml_file} のタスクブランチ割り当て構造確認エラー: {e}")
     
     def test_organization_structure(self):
         """Organization CRDの構造が正しいことを確認"""
@@ -521,7 +521,7 @@ class TestExecutiveFloorIntegration(unittest.TestCase):
         # Floor 2 の存在確認
         self.assertIn("Floor 2", tree_output, "階層表示にFloor 2が含まれていません")
         self.assertIn("Executive Room", tree_output, "階層表示にExecutive Roomが含まれていません")
-        self.assertIn("strategic_planning", tree_output, "タスク割り当てが表示されていません")
+        self.assertIn("strategic_planning", tree_output, "タスクブランチ割り当てが表示されていません")
 
 
 if __name__ == '__main__':

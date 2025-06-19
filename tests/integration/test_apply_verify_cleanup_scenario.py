@@ -4,7 +4,7 @@ haconiwaの包括的なシナリオテスト:
 1. YAML設定の適用
 2. 全ペインが正しく作成されたことを検証
 3. ペインタイトルとウィンドウ構造の検証
-4. タスク割り当ての検証
+4. タスクブランチ割り当ての検証
 5. 全てをクリーンアップ
 """
 
@@ -152,14 +152,14 @@ class HaconiwaScenarioTest:
         return pane_titles
     
     def verify_task_assignments(self) -> Dict[str, any]:
-        """ログファイルからタスク割り当てを検証"""
-        print(f"\n🔍 ステップ5: タスク割り当ての検証...")
+        """ログファイルからタスクブランチ割り当てを検証"""
+        print(f"\n🔍 ステップ5: タスクブランチ割り当ての検証...")
         
         task_assignments = {}
         tasks_dir = Path(f"./{self.session_name}/tasks")
         
         if not tasks_dir.exists():
-            print(f"⚠️  タスクディレクトリが見つかりません: {tasks_dir}")
+            print(f"⚠️  タスクブランチディレクトリが見つかりません: {tasks_dir}")
             return {}
         
         # 全てのエージェント割り当てファイルを検索
@@ -182,7 +182,7 @@ class HaconiwaScenarioTest:
             except Exception as e:
                 print(f"   ⚠️  読み取りエラー {assignment_file}: {e}")
         
-        print(f"✅ 見つかったタスク割り当て総数: {len(task_assignments)}")
+        print(f"✅ 見つかったタスクブランチ割り当て総数: {len(task_assignments)}")
         return task_assignments
     
     def verify_claude_commands(self) -> Dict[str, int]:
@@ -233,9 +233,9 @@ class HaconiwaScenarioTest:
             if window_info['pane_count'] != 16:
                 failures.append(f"ウィンドウ {window_id} は {window_info['pane_count']} ペイン、期待値: 16")
         
-        # タスク割り当てをチェック (いくつか存在するはず)
+        # タスクブランチ割り当てをチェック (いくつか存在するはず)
         if len(results['task_assignments']) == 0:
-            failures.append("タスク割り当てが見つかりません")
+            failures.append("タスクブランチ割り当てが見つかりません")
         
         # ペインタイトルの存在をチェック
         total_titled_panes = 0
@@ -318,7 +318,7 @@ class HaconiwaScenarioTest:
             # ステップ4: ペインタイトル検証
             results['pane_titles'] = self.verify_pane_titles()
             
-            # ステップ5: タスク割り当て検証
+            # ステップ5: タスクブランチ割り当て検証
             results['task_assignments'] = self.verify_task_assignments()
             
             # ステップ6: claudeコマンド検証
@@ -349,7 +349,7 @@ class HaconiwaScenarioTest:
 
 
 def test_multiroom_tasks_scenario():
-    """タスク付きマルチルーム設定のテスト"""
+    """タスクブランチ付きマルチルーム設定のテスト"""
     test = HaconiwaScenarioTest(
         yaml_file="test-multiroom-with-tasks.yaml",
         session_name="test-company-multiroom-tasks"

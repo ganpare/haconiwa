@@ -39,7 +39,7 @@ class SpaceManager:
     def set_task_assignments(self, task_assignments: Dict[str, Dict[str, Any]]):
         """Set task assignments for agent-to-task mapping"""
         self.task_assignments = task_assignments
-        logger.info(f"Set {len(task_assignments)} task assignments in SpaceManager")
+        logger.info(f"SpaceManagerに {len(task_assignments)} 個のタスクブランチ割り当てを設定しました")
     
     def get_task_by_assignee(self, assignee: str) -> Dict[str, Any]:
         """Get task assigned to specific agent"""
@@ -54,7 +54,7 @@ class SpaceManager:
             rooms = config.get("rooms", [])
             organizations = config.get("organizations", [])
             
-            logger.info(f"Creating multiroom session: {session_name} with {len(rooms)} rooms")
+            logger.info(f"会社を作成中: {session_name} ({len(rooms)} ルーム)")
             
             # Check and remove existing tmux session if it exists
             self._cleanup_existing_session(session_name)
@@ -71,13 +71,13 @@ class SpaceManager:
             if config.get("git_repo"):
                 git_config = config["git_repo"].copy()  # Make a copy to add space_ref
                 git_config["space_ref"] = config["name"]  # Add space reference
-                logger.info(f"Setting up Git repository in tasks/main/: {git_config['url']}")
+                logger.info(f"tasks/main/ に Git リポジトリをセットアップ中: {git_config['url']}")
                 
                 # Clone to tasks/main/ 
                 force_clone = getattr(self, '_force_clone', False)
                 success = self._clone_repository_to_tasks(git_config, main_repo_path, force_clone)
                 if not success:
-                    logger.warning("Failed to set up Git repository in tasks/main/, continuing without Git")
+                    logger.warning("tasks/main/ での Git リポジトリセットアップに失敗、Git なしで継続します")
             
             # Generate desk mappings with organization info and room configuration
             desk_mappings = self.generate_desk_mappings(organizations, rooms, grid, base_path)
@@ -90,7 +90,7 @@ class SpaceManager:
             
             # Create windows for each room
             if not self._create_windows_for_rooms(session_name, rooms, base_path):
-                logger.error("Failed to create windows for rooms")
+                logger.error("ルーム用部屋の作成に失敗しました")
                 return False
             
             # Distribute desks to windows
@@ -114,14 +114,14 @@ class SpaceManager:
             for room_id, desks_in_room in desk_distribution.items():
                 # Skip room if it doesn't have a window
                 if room_id not in valid_room_ids:
-                    logger.warning(f"Skipping room {room_id} - no window created for it")
+                    logger.warning(f"ルーム {room_id} をスキップ - 部屋が作成されていません")
                     continue
                     
                 window_id = self._get_window_id_for_room(room_id)
                 
                 # Validate window_id is within valid range
                 if window_id.isdigit() and int(window_id) >= len(rooms):
-                    logger.error(f"Invalid window_id {window_id} for room {room_id} - only {len(rooms)} windows exist")
+                    logger.error(f"ルーム {room_id} の room_id {window_id} が無効 - {len(rooms)} 個の部屋しか存在しません")
                     continue
                 
                 # Get pane count for this specific room
@@ -130,25 +130,25 @@ class SpaceManager:
                 else:
                     room_pane_count = panes_per_window
                 
-                logger.info(f"Setting up {room_id}: {room_pane_count} panes, {len(desks_in_room)} mappings")
+                logger.info(f"{room_id} をセットアップ中: {room_pane_count} デスク, {len(desks_in_room)} 割り当て")
                 
                 # Create panes in this window
                 if not self._create_panes_in_window(session_name, window_id, room_pane_count):
-                    logger.warning(f"Failed to create panes in window {window_id}")
+                    logger.warning(f"部屋 {window_id} でデスクの作成に失敗しました")
                     continue
                 
                 # Ensure we have enough mappings for the panes
                 if len(desks_in_room) < room_pane_count:
-                    logger.warning(f"Insufficient mappings for {room_id}: {len(desks_in_room)} mappings for {room_pane_count} panes")
+                    logger.warning(f"{room_id} の割り当てが不足: {room_pane_count} デスクに対して {len(desks_in_room)} 割り当て")
                     continue
                 elif len(desks_in_room) > room_pane_count:
-                    logger.info(f"Extra mappings for {room_id}, using first {room_pane_count} mappings")
+                    logger.info(f"{room_id} の余分な割り当て、最初の {room_pane_count} 割り当てを使用")
                     desks_in_room = desks_in_room[:room_pane_count]
                 
                 # Set up each desk in the window
                 for pane_index, desk_mapping in enumerate(desks_in_room):
                     if pane_index >= room_pane_count:
-                        logger.warning(f"Skipping extra mapping {pane_index} for {room_id}")
+                        logger.warning(f"{room_id} の余分な割り当て {pane_index} をスキップ")
                         break
                     
                     # Debug: Log the desk mapping being used
@@ -178,16 +178,16 @@ class SpaceManager:
             # Claude command will be sent after directory change in _update_pane_in_window
             # self._send_claude_command_to_all_panes(session_name, rooms, desk_distribution)
             
-            logger.info(f"✅ Multiroom session '{session_name}' created successfully")
-            logger.info(f"   📁 Base directory: {base_path}")
-            logger.info(f"   🏢 Organizations: {len(organizations)}")
-            logger.info(f"   🚪 Rooms: {len(rooms)}")
-            logger.info(f"   🖥️ Panes: {total_panes} total ({panes_per_room} per room)" if len(rooms) > 1 else f"   🖥️ Panes: {total_panes}")
+            logger.info(f"✅ 会社 '{session_name}' の作成が成功しました")
+            logger.info(f"   📁 基準ディレクトリ: {base_path}")
+            logger.info(f"   🏢 組織: {len(organizations)}")
+            logger.info(f"   🚪 ルーム: {len(rooms)}")
+            logger.info(f"   🖥️ デスク: 合計 {total_panes} ({panes_per_room} 個/ルーム)" if len(rooms) > 1 else f"   🖥️ デスク: {total_panes}")
             
             return True
             
         except Exception as e:
-            logger.error(f"Failed to create multiroom session {config.get('name', 'unknown')}: {e}")
+            logger.error(f"会社 {config.get('name', 'unknown')} の作成に失敗: {e}")
             return False
     
     def generate_desk_mappings(self, organizations: List[Dict[str, Any]] = None, rooms: List[Dict[str, Any]] = None, grid: str = "8x4", base_path: Path = None) -> List[Dict[str, Any]]:
@@ -993,11 +993,11 @@ class SpaceManager:
             if not readme_file.exists():
                 with open(readme_file, 'w', encoding='utf-8') as f:
                     f.write("# 待機中エージェント\n\n")
-                    f.write("このディレクトリには、現在タスクが割り当てられていないエージェントが配置されています。\n\n")
+                    f.write("このディレクトリには、現在タスクブランチが割り当てられていないエージェントが配置されています。\n\n")
                     f.write("## エージェント状況\n")
-                    f.write("- タスク割り当てありエージェント → `../tasks/` ディレクトリ\n")
-                    f.write("- タスク待機中エージェント → このディレクトリ\n\n")
-                    f.write("新しいタスクが作成されると、自動的にタスクディレクトリに移動します。\n")
+                    f.write("- タスクブランチ割り当てありエージェント → `../tasks/` ディレクトリ\n")
+                    f.write("- タスクブランチ待機中エージェント → このディレクトリ\n\n")
+                    f.write("新しいタスクブランチが作成されると、自動的にタスクブランチディレクトリに移動します。\n")
             
             # Always use absolute path but make it cleaner with ~ if possible
             absolute_path = str(standby_dir.absolute())
@@ -1728,9 +1728,17 @@ class SpaceManager:
             updated_count = 0
             
             # Get base path from space_ref
-            base_path = Path(f"./{space_ref.replace('-company', '-world')}")
-            if not base_path.exists():
-                # Try alternative paths
+            # Try to get organization base path first from current applier instance
+            import sys
+            org_base_path = None
+            if hasattr(sys.modules['__main__'], '_current_applier'):
+                applier = sys.modules['__main__']._current_applier
+                org_base_path = applier._get_organization_base_path(space_ref)
+            
+            if org_base_path:
+                base_path = Path(org_base_path)
+            else:
+                # Fallback to space_ref directory
                 base_path = Path(f"./{space_ref}")
                 if not base_path.exists():
                     base_path = Path("./test-world-multiroom-tasks")
@@ -1877,22 +1885,22 @@ class SpaceManager:
         # World Hierarchy
         console.print(Panel.fit(
             world_tree,
-            title="[bold blue]🌍 World Space Hierarchy[/bold blue]",
+            title="[bold blue]🌍 ワールド空間階層[/bold blue]",
             style="blue",
-            subtitle="[dim]Logical structure and agent assignments[/dim]"
+            subtitle="[dim]論理構造とエージェント割り当て[/dim]"
         ))
         
         # Directory Structure and Task Assignments side by side
         if task_assignments:
             columns = Columns([
-                Panel.fit(directory_tree, title="[bold green]📁 Directory Structure[/bold green]", style="green"),
-                Panel.fit(task_table, title="[bold yellow]🎯 Task Assignments[/bold yellow]", style="yellow")
+                Panel.fit(directory_tree, title="[bold green]📁 ディレクトリ構造[/bold green]", style="green"),
+                Panel.fit(task_table, title="[bold yellow]🎯 タスクブランチ割り当て[/bold yellow]", style="yellow")
             ], equal=True)
             console.print(columns)
         else:
             console.print(Panel.fit(
                 directory_tree,
-                title="[bold green]📁 Directory Structure[/bold green]",
+                title="[bold green]📁 ディレクトリ構造[/bold green]",
                 style="green"
             ))
         
@@ -2105,10 +2113,10 @@ class SpaceManager:
         from rich.table import Table
         
         table = Table(show_header=True, header_style="bold cyan")
-        table.add_column("Task", style="green", width=40)
-        table.add_column("Room", style="blue", width=16)
-        table.add_column("Role", style="magenta", width=20)
-        table.add_column("Agent", style="yellow", width=20)
+        table.add_column("タスクブランチ", style="green", width=40)
+        table.add_column("ルーム", style="blue", width=16)
+        table.add_column("役職", style="magenta", width=20)
+        table.add_column("エージェント", style="yellow", width=20)
         
         if not task_assignments:
             table.add_row("[dim]No task assignments[/dim]", "", "", "")
@@ -2314,17 +2322,34 @@ class SpaceManager:
         updated_count = 0
         
         try:
-            # Get all task assignments
-            task_dirs = list(base_path.glob("tasks/*"))
+            # Get all task assignments - support both flat and nested directory structures
+            task_dirs = []
+            tasks_base = base_path / "tasks"
+            
+            if tasks_base.exists():
+                # First level: tasks/task_name or tasks/main
+                for item in tasks_base.iterdir():
+                    if item.is_dir() and item.name != "main":
+                        task_dirs.append(item)
+                
+                # Second level: tasks/category/task_name (for feature/, bugfix/, etc.)
+                for category_dir in tasks_base.iterdir():
+                    if category_dir.is_dir() and category_dir.name != "main":
+                        for task_dir in category_dir.iterdir():
+                            if task_dir.is_dir():
+                                task_dirs.append(task_dir)
+            
+            logger.info(f"Found {len(task_dirs)} potential task directories")
             
             for task_dir in task_dirs:
-                if task_dir.name == "main" or not task_dir.is_dir():
-                    continue
                 
                 # Check for assignment log
                 assignment_log = task_dir / ".haconiwa" / "agent_assignment.json"
                 if not assignment_log.exists():
+                    logger.debug(f"No assignment log found in {task_dir}")
                     continue
+                
+                logger.info(f"Processing task directory: {task_dir} (assignment log found)")
                 
                 try:
                     with open(assignment_log, 'r') as f:
@@ -2356,6 +2381,7 @@ class SpaceManager:
                                     logger.warning(f"Could not load desk mappings: {e}")
                         
                         if desk_mappings:
+                            logger.debug(f"Checking desk mappings for agent {agent_id}")
                             for idx, mapping in enumerate(desk_mappings):
                                 if mapping.get('agent_id') == agent_id:
                                     # Calculate window and pane from index
@@ -2377,15 +2403,35 @@ class SpaceManager:
                                     else:
                                         task_path_str = str(task_path)
                                     
+                                    logger.info(f"Moving agent {agent_id} from pane {window_id}.{pane_index} to {task_path_str}")
+                                    
+                                    # Extract task branch name from task directory
+                                    task_branch_name = assignment.get("task_name", task_dir.name)
+                                    
+                                    # Update pane title to agent-taskbranch format
+                                    pane_title = f"{agent_id}-{task_branch_name}"
+                                    title_cmd = ["tmux", "select-pane", "-t", f"{session_name}:{window_id}.{pane_index}", 
+                                                "-T", pane_title]
+                                    title_result = subprocess.run(title_cmd, capture_output=True, text=True)
+                                    
+                                    if title_result.returncode == 0:
+                                        logger.info(f"✅ Updated pane title to: {pane_title}")
+                                    else:
+                                        logger.warning(f"⚠️ Failed to update pane title: {title_result.stderr}")
+                                    
                                     cmd = ["tmux", "send-keys", "-t", f"{session_name}:{window_id}.{pane_index}", 
                                            f"cd {task_path_str} && claude", "Enter"]
                                     result = subprocess.run(cmd, capture_output=True, text=True)
                                     
                                     if result.returncode == 0:
-                                        logger.info(f"✅ Moved agent {agent_id} to task directory: {task_path_str}")
+                                        logger.info(f"✅ Successfully moved agent {agent_id} to task directory: {task_path_str}")
                                         updated_count += 1
                                         pane_found = True
                                         break
+                                    else:
+                                        logger.error(f"❌ Failed to move agent {agent_id}: tmux error: {result.stderr}")
+                        else:
+                            logger.warning(f"No desk mappings available for agent assignment")
                         
                         if not pane_found:
                             logger.warning(f"Could not find pane for agent {agent_id}")

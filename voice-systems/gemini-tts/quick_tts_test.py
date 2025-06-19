@@ -20,13 +20,13 @@ def save_binary_file(file_name, data):
     f = open(file_name, "wb")
     f.write(data)
     f.close()
-    print(f"File saved to: {file_name}")
+    # print(f"File saved to: {file_name}")
 
 def play_audio_file(filename: str):
     """音声ファイルを再生"""
     try:
         subprocess.run(["afplay", "-v", "0.4", filename], check=True)
-        print(f"音声再生完了: {filename}")
+        # print(f"音声再生完了: {filename}")
     except subprocess.CalledProcessError as e:
         print(f"音声再生エラー: {e}")
     except FileNotFoundError:
@@ -67,7 +67,7 @@ def generate(input_text: str):
     file_index = 0
     audio_files = []
     
-    print("🎤 音声生成中...")
+    # print("🎤 音声生成中...")
     
     for chunk in client.models.generate_content_stream(
         model=model,
@@ -98,13 +98,13 @@ def generate(input_text: str):
                 print(chunk.text)
     
     # 音声ファイルを順次再生
-    print("🔊 音声再生開始...")
+    # print("🔊 音声再生開始...")
     for audio_file in audio_files:
         play_audio_file(audio_file)
         # ファイルを削除
         try:
             os.remove(audio_file)
-            print(f"ファイル削除: {audio_file}")
+            # print(f"ファイル削除: {audio_file}")
         except OSError:
             pass
 

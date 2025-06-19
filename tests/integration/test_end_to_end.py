@@ -169,8 +169,8 @@ workers:
 #     """複数エージェント協調動作のテスト (スタブ)"""
 #     haconiwa_root = setup_haconiwa_env
 #     print("Testing: Multiple agents coordination (stub)")
-#     # Boss, Worker A, Worker B を起動し、タスクを割り当て、協調して完了するシナリオをシミュレーション
-#     # 複雑なエージェント間通信やタスク実行ロジックの検証が必要
+#     # Boss, Worker A, Worker B を起動し、タスクブランチを割り当て、協調して完了するシナリオをシミュレーション
+#     # 複雑なエージェント間通信やタスクブランチ実行ロジックの検証が必要
 #     pass
 
 # def test_e2e_failure_recovery(setup_haconiwa_env):
@@ -184,7 +184,7 @@ workers:
 #     """パフォーマンス・負荷テスト (スタブ)"""
 #     haconiwa_root = setup_haconiwa_env
 #     print("Testing: Performance and load (stub)")
-#     # 大量のタスクやエージェントを同時に実行し、システムの応答性やリソース使用率を測定
+#     # 大量のタスクブランチやエージェントを同時に実行し、システムの応答性やリソース使用率を測定
 #     pass
 
 # def test_e2e_security_integration(setup_haconiwa_env):

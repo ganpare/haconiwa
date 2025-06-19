@@ -3,7 +3,7 @@ import asyncio
 from .base import BaseAgent
 
 class BossAgent(BaseAgent):
-    """Boss AIエージェント - タスク分解・計画・割り当て・Worker監視・進捗管理"""
+    """Boss AIエージェント - タスクブランチ分解・計画・割り当て・Worker監視・進捗管理"""
     
     def __init__(self, agent_id: str, config):
         super().__init__(agent_id, config)
@@ -31,7 +31,7 @@ class BossAgent(BaseAgent):
         self.logger.info("Boss agent cleanup")
     
     async def assign_task(self, task: Dict[str, Any], worker_id: str):
-        """タスクをWorkerに割り当て"""
+        """タスクブランチをWorkerに割り当て"""
         task_id = task.get("id")
         self.task_assignments[task_id] = worker_id
         self.logger.info(f"Assigned task {task_id} to worker {worker_id}")
@@ -43,7 +43,7 @@ class BossAgent(BaseAgent):
             pass
     
     async def _handle_task_request(self, message: Dict[str, Any]):
-        """タスクリクエスト処理"""
+        """タスクブランチリクエスト処理"""
         pass
     
     async def _handle_worker_report(self, message: Dict[str, Any]):

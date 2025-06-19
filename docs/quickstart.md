@@ -25,10 +25,10 @@ haconiwa agent spawn boss-1 --type=boss
 haconiwa agent spawn worker-a --type=worker --skill=frontend
 haconiwa agent spawn worker-b --type=worker --skill=backend
 
-# 新規タスクの作成
+# 新規タスクブランチの作成
 haconiwa task new "実装: ログイン機能"
 
-# タスクの割り当て
+# タスクブランチの割り当て
 haconiwa task assign TASK-001 worker-a
 
 # 進捗確認
@@ -45,7 +45,7 @@ haconiwa space create todo-space
 
 # AIエージェントによる開発支援
 haconiwa agent spawn boss-1 --type=boss
-haconiwa task new "タスク: TODOリスト表示機能の実装"
+haconiwa task new "タスクブランチ: TODOリスト表示機能の実装"
 
 # セッション一覧の確認
 haconiwa space list
@@ -78,13 +78,13 @@ core.initialize()
 boss = BossAgent("boss-1")
 worker = WorkerAgent("worker-a", skill="frontend")
 
-# タスクの作成と割り当て
+# タスクブランチの作成と割り当て
 task = core.create_task("新機能の実装")
 boss.assign_task(task, worker)
 
 # 進捗監視
 for status in worker.watch_progress():
-    print(f"タスク進捗: {status.progress}%")
+    print(f"タスクブランチ進捗: {status.progress}%")
 
 from haconiwa.agent import BaseAgent
 
@@ -93,7 +93,7 @@ class CustomAgent(BaseAgent):
         super().__init__(name, **kwargs)
         
     async def process_task(self, task):
-        # タスク処理ロジックの実装
+        # タスクブランチ処理ロジックの実装
         result = await self.execute_custom_logic(task)
         return result
 
@@ -101,7 +101,7 @@ from haconiwa.core import hooks
 
 @hooks.on_task_complete
 def handle_task_complete(task):
-    print(f"タスク完了: {task.id}")
+    print(f"タスクブランチ完了: {task.id}")
     
 @hooks.on_agent_error
 def handle_agent_error(agent, error):

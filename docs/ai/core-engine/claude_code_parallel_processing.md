@@ -38,7 +38,7 @@ async def edit_multiple_files():
         # ... 10個のファイルまで追加可能
     ]
     
-    # 全てのタスクを作成
+    # 全てのタスクブランチを作成
     tasks = [
         asyncio.create_task(process_file(file, prompt)) 
         for file, prompt in files_to_edit
@@ -86,7 +86,7 @@ async def robust_parallel_processor(files_and_prompts):
                 "error": str(e)
             }
     
-    # 並列タスクの作成と実行
+    # 並列タスクブランチの作成と実行
     tasks = [
         asyncio.create_task(safe_process_file(file_path, prompt))
         for file_path, prompt in files_and_prompts

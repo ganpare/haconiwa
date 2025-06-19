@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Development Status](https://img.shields.io/badge/status-alpha--development-red)](https://github.com/dai-motoki/haconiwa)
 
-**箱庭 (Haconiwa)** は、AI協調開発支援Python CLIツールです。tmux会社管理、git-worktree連携、タスク管理、AIエージェント調整機能を統合し、効率的な開発環境を提供する次世代ツールです。
+**箱庭 (Haconiwa)** は、AI協調開発支援Python CLIツールです。tmux会社管理、git-worktree連携、タスクブランチ管理、AIエージェント調整機能を統合し、効率的な開発環境を提供する次世代ツールです。
 
 [🇺🇸 English README](README.md)
 
@@ -22,7 +22,7 @@
 - 宣伝されている全機能の完全実装
 - AIエージェント協調機能
 - 開発ツールとの統合
-- 実際のタスクと会社管理
+- 実際のタスクブランチと会社管理
 
 現時点では本番環境での使用は推奨されません。これは意図されたユーザーエクスペリエンスを示す開発プレビューです。
 
@@ -37,9 +37,35 @@
 - **📦 PyPI**: [haconiwa](https://pypi.org/project/haconiwa/)
 - **🔖 GitHubリリース**: [Releases](https://github.com/dai-motoki/haconiwa/releases)
 
-## 🔧 最近の更新 (2025-06-13)
+## 🔧 最近の更新 (2025-06-19)
 
-**タスクブランチの修正**: YAMLで指定された`defaultBranch`ではなく`main`ブランチからタスクブランチが作成される問題を修正しました。YAML設定で`defaultBranch: "dev"`を指定すると、すべてのタスクワークツリーが正しく`dev`ブランチから作成されるようになりました。
+**タスクブランチ命名システムの大幅改善**: Gitワークフローに準拠した柔軟なタスクブランチ命名システムを実装し、モニター表示とTMUXペイン名の自動更新機能を大幅に強化しました。
+
+### 📋 実装された主要機能
+
+#### ✅ 柔軟なタスクブランチ命名規則
+- **スラッシュ形式**: `feature/01_ai_strategy`, `bugfix/04_product_roadmap`
+- **ハイフン形式**: `feature-02_tech_architecture` 
+- **アンダースコア形式**: `feature_03_financial_planning`
+- **対応カテゴリ**: feature, bugfix, hotfix, enhancement, refactor, docs, test, perf
+
+#### ✅ モニター表示の完全対応
+- あらゆる番号パターンに対応（01, 02, 999, xyz等）
+- Gitカテゴリで始まるタスクブランチを自動認識
+- スラッシュ形式での完全なタスクブランチ名表示
+
+#### ✅ TMUXペイン名の自動更新
+- ペイン名形式: `エージェント名-タスクブランチ名`
+- `haconiwa apply` 実行時に自動でペイン名を更新
+- 例: `data-lead-kimura-feature/01_ai_strategy`
+
+#### ✅ エージェント移動の改善
+- フラット構造(`tasks/task_name/`)とネスト構造(`tasks/category/task_name/`)の両方に対応
+- スラッシュ形式のタスクブランチで正しくエージェント移動
+
+### 📈 過去の更新 (2025-06-13)
+
+**タスクブランチの修正**: YAMLで指定された`defaultBranch`ではなく`main`ブランチからタスクブランチが作成される問題を修正しました。
 
 - ✅ Task CRDが関連するSpace CRDから`defaultBranch`を適切に継承
 - ✅ 既存の誤ったブランチを自動的に検出し、正しいブランチから再作成
@@ -221,10 +247,10 @@ spec:
   - これにより、`main`ブランチを保護しながら、開発ブランチからフィーチャーブランチを派生させることが可能
 - `auth`: 認証方式（"https" または "ssh"）
 
-**重要**: `defaultBranch`の設定により、Task CRDで`worktree: true`が指定されたタスクは、このブランチから新しいブランチとworktreeが作成されます。Git worktreeを使用することで、各タスクは独立したディレクトリに隔離され、以下のメリットがあります：
-- 各タスクが専用のワーキングディレクトリを持つため、並行開発が可能
-- ブランチの切り替えなしに複数のタスクを同時進行できる
-- 各エージェントが他のタスクの作業に影響を与えることなく開発可能
+**重要**: `defaultBranch`の設定により、Task CRDで`worktree: true`が指定されたタスクブランチは、このブランチから新しいブランチとworktreeが作成されます。Git worktreeを使用することで、各タスクブランチは独立したディレクトリに隔離され、以下のメリットがあります：
+- 各タスクブランチが専用のワーキングディレクトリを持つため、並行開発が可能
+- ブランチの切り替えなしに複数のタスクブランチを同時進行できる
+- 各エージェントが他のタスクブランチの作業に影響を与えることなく開発可能
 - 例: `task_ai_strategy_01`は`./haconiwa-dev-world/tasks/task_ai_strategy_01/`に独立した作業環境として作成される
 
 **agentDefaults.permissions（開発予定機能）:**
@@ -233,16 +259,16 @@ spec:
 - `deny`: 禁止されるコマンドパターン
 - 現在は設定値として記述可能だが、実際の権限制御は未実装
 
-### 3. Task CRD（タスク定義）
+### 3. Task CRD（タスクブランチ定義）
 
 ```yaml
 apiVersion: haconiwa.dev/v1
 kind: Task
 metadata:
-  name: task_ai_strategy_01  # タスクの一意識別子
+  name: task_ai_strategy_01  # タスクブランチの一意識別子
 spec:
-  taskId: task_ai_strategy_01  # タスクID
-  title: "AI Strategy Development"  # タスクタイトル
+  taskId: task_ai_strategy_01  # タスクブランチID
+  title: "AI Strategy Development"  # タスクブランチタイトル
   description: |  # マークダウン形式の詳細説明
     ## AI Strategy Development
     
@@ -288,7 +314,7 @@ spec:
   # ...
 
 ---
-# タスク定義（複数可）
+# タスクブランチ定義（複数可）
 apiVersion: haconiwa.dev/v1
 kind: Task
 metadata:
@@ -300,7 +326,7 @@ spec:
 **YAMLファイル構成のベストプラクティス:**
 1. 組織定義を最初に配置
 2. スペース定義を次に配置
-3. タスク定義を最後に配置（ルームごとにグループ化推奨）
+3. タスクブランチ定義を最後に配置（ルームごとにグループ化推奨）
 4. `---`で各ドキュメントを区切る
 
 ### 5. 実行時の処理フロー
@@ -308,9 +334,9 @@ spec:
 1. **YAMLパース**: マルチドキュメントを個別のCRDオブジェクトに分解
 2. **組織作成**: Organization CRDから部門・役割構造を構築
 3. **スペース作成**: Space CRDからtmuxセッション・ウィンドウ構造を構築
-4. **タスク作成**: Task CRDからGit worktreeとタスク割り当てを作成
-   - `defaultBranch`から各タスクのブランチを作成
-   - エージェントをタスクディレクトリに配置
+4. **タスクブランチ作成**: Task CRDからGit worktreeとタスクブランチ割り当てを作成
+   - `defaultBranch`から各タスクブランチのブランチを作成
+   - エージェントをタスクブランチディレクトリに配置
 5. **Claude実行**: 各ペインで`cd {path} && claude`を自動実行
 
 ### 6. Law CRD（法的フレームワーク定義）- 開発予定
@@ -554,14 +580,14 @@ haconiwa space delete -c test-company-multiroom-tasks --force
 │                           └── desks/ # デスクレベル (同様の構成)
 ├── standby/                # 待機中エージェント（26 agents）
 │   └── README.md          # 自動生成説明ファイル
-└── tasks/                  # タスク割り当て済みエージェント（6 agents）
+└── tasks/                  # タスクブランチ割り当て済みエージェント（6 agents）
     ├── main/              # メインGitリポジトリ
-    ├── 20250609061748_frontend-ui-design_01/     # タスク1
-    ├── 20250609061749_backend-api-development_02/ # タスク2
-    ├── 20250609061750_database-schema-design_03/  # タスク3
-    ├── 20250609061751_devops-ci-cd-pipeline_04/   # タスク4
-    ├── 20250609061752_user-authentication_05/     # タスク5
-    └── 20250609061753_performance-optimization_06/ # タスク6
+    ├── 20250609061748_frontend-ui-design_01/     # タスクブランチ1
+    ├── 20250609061749_backend-api-development_02/ # タスクブランチ2
+    ├── 20250609061750_database-schema-design_03/  # タスクブランチ3
+    ├── 20250609061751_devops-ci-cd-pipeline_04/   # タスクブランチ4
+    ├── 20250609061752_user-authentication_05/     # タスクブランチ5
+    └── 20250609061753_performance-optimization_06/ # タスクブランチ6
 ```
 
 **🏢 tmux構造（マルチルーム）:**
@@ -590,7 +616,7 @@ test-multiroom-company (Session)
 - 🗑️ **柔軟なクリーンアップ**: ディレクトリ保持・削除の選択
 - 📊 **32ペイン管理**: 2ルーム × 16ペイン構成
 - 🔧 **ドライラン対応**: 実行前のコマンド確認
-- 🎯 **タスク割り当てシステム**: エージェント自動ディレクトリ移動
+- 🎯 **タスクブランチ割り当てシステム**: エージェント自動ディレクトリ移動
 ### tmux マルチエージェント環境（従来方式）
 
 4x4グリッドのマルチエージェント開発環境を**今すぐ**作成・管理できます：
@@ -659,7 +685,7 @@ haconiwa company kill my-company --force
 - 🔄 **シームレス更新**: 既存会社の設定変更を安全に実行
 - 🔨 **強制再構築**: --rebuildオプションで完全な再作成
 - 🏗️ **自動ディレクトリ構成**: 組織・役割別デスク自動作成
-- 🏷️ **カスタム組織名・タスク名**: 動的なタイトル設定
+- 🏷️ **カスタム組織名・タスクブランチ名**: 動的なタイトル設定
 - 🗑️ **柔軟なクリーンアップ**: ディレクトリ保持・削除の選択可能
 - 🏛️ **会社管理**: 作成・一覧・接続・削除の完全サポート
 - 📄 **README自動生成**: 各デスクにREADME.md自動作成
@@ -707,7 +733,7 @@ haconiwa monitor -c my-company --columns pane agent status --japanese
 
 🏢  部屋: Frontend
 ┏━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
-┃ ペイン ┃ タスク          ┃ プロバイダAI   ┃ エージェント名      ┃ 稼働率                                                               ┃ ステータス  ┃
+┃ ペイン ┃ タスクブランチ          ┃ プロバイダAI   ┃ エージェント名      ┃ 稼働率                                                               ┃ ステータス  ┃
 ┡━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
 │ 0      │ Greeting        │ ✓ Claude       │ lead-pm-01          │   0.1% ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                 │  仕事待ち   │
 │ 1      │ Greeting Start  │ ✓ Claude       │ motoki              │   0.2% ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                 │  仕事待ち   │
@@ -716,7 +742,7 @@ haconiwa monitor -c my-company --columns pane agent status --japanese
 
 🏢  部屋: Backend  
 ┏━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
-┃ ペイン ┃ タスク          ┃ プロバイダAI   ┃ エージェント名      ┃ 稼働率                                                               ┃ ステータス  ┃
+┃ ペイン ┃ タスクブランチ          ┃ プロバイダAI   ┃ エージェント名      ┃ 稼働率                                                               ┃ ステータス  ┃
 ┡━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
 │ 0      │ Backend Task    │ ✗ Claude無し   │ lead-pm-01          │ N/A                                                                  │ プロセス無し │
 │ 1      │ API Development │ ✓ Claude       │ motoki              │   2.3% ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                 │  作業中     │
@@ -741,7 +767,7 @@ haconiwa monitor -c my-company --columns pane agent status --japanese
 - `room` - 部屋/Window名（Frontend/Backend等）
 - `window` - Window番号
 - `pane` - ペイン番号
-- `title` - タスクタイトル
+- `title` - タスクブランチタイトル
 - `parent` - 親プロセスID
 - `claude` - プロバイダAI状態（✓/✗）
 - `agent` - カスタムエージェントID
@@ -751,7 +777,7 @@ haconiwa monitor -c my-company --columns pane agent status --japanese
 - `status` - エージェントステータス（仕事待ち/作業中/多忙）
 
 **🎯 状態判定ルール:**
-- **仕事待ち** (≤2.0% CPU): 待機状態、新しいタスク受付可能
+- **仕事待ち** (≤2.0% CPU): 待機状態、新しいタスクブランチ受付可能
 - **作業中** (2.0-20% CPU): アクティブに作業中
 - **多忙** (>20% CPU): 高負荷作業中、割り込み注意
 
@@ -1266,9 +1292,9 @@ tmux kill-session -t my-company
 - 🤖 **AIエージェント管理**: Boss/Workerエージェントの作成・監視
 - 📦 **ワールド管理**: 開発環境の構築・管理
 - 🖥️ **tmux会社連携**: 開発スペースの効率的な管理
-- 📋 **タスク管理**: git-worktreeと連携したタスク管理システム
+- 📋 **タスクブランチ管理**: git-worktreeと連携したタスクブランチ管理システム
 - 📊 **リソース管理**: DBやファイルパスの効率的なスキャン
-- 👁️ **リアルタイム監視**: エージェントやタスクの進捗監視
+- 👁️ **リアルタイム監視**: エージェントやタスクブランチの進捗監視
 - 🛠️ **開発ツール連携**: Claude Code SDK等を使用した並列開発支援（開発中）
 
 ## 🏗️ アーキテクチャ概念
@@ -1287,8 +1313,8 @@ Haconiwa CRDアーキテクチャ
 │   ├── 階層構造（nations > cities > villages > companies > buildings > floors > rooms）
 │   ├── Gitリポジトリ設定（gitRepo）
 │   └── tmuxセッション/ウィンドウマッピング
-├── Task CRD（タスク定義）
-│   ├── タスク詳細（title, description）
+├── Task CRD（タスクブランチ定義）
+│   ├── タスクブランチ詳細（title, description）
 │   ├── エージェント割り当て（assignee）
 │   └── Git worktree設定（branch, worktree）
 └── Law CRD（法的フレームワーク）- 開発予定
@@ -1332,8 +1358,8 @@ Haconiwa CRDアーキテクチャ
 - YAMLファイルですべての構成を定義
 - 再現可能な開発環境の構築
 
-**2. Git worktreeによるタスク隔離**
-- 各タスクが独立したディレクトリで作業
+**2. Git worktreeによるタスクブランチ隔離**
+- 各タスクブランチが独立したディレクトリで作業
 - `defaultBranch`からの自動ブランチ作成
 - 並行開発の実現
 
@@ -1382,12 +1408,12 @@ haconiwa agent spawn boss
 haconiwa agent spawn worker-a
 ```
 
-### 5. タスク管理
+### 5. タスクブランチ管理
 ```bash
-# 新しいタスク作成
+# 新しいタスクブランチ作成
 haconiwa task new feature-login
 
-# エージェントにタスク割り当て
+# エージェントにタスクブランチ割り当て
 haconiwa task assign feature-login worker-a
 
 # 進捗監視
@@ -1432,14 +1458,14 @@ tmuxを使った効率的な開発企業環境管理
 - `haconiwa company kill <name>` - 会社終了・削除
 - `haconiwa company resize <name>` - 会社レイアウト調整
 
-### `task` - タスク管理コマンド
-git-worktreeと連携したタスク管理
-- `haconiwa task new <name>` - 新しいタスク作成
-- `haconiwa task assign <task> <agent>` - タスク割り当て
-- `haconiwa task status` - タスク状態確認
+### `task` - タスクブランチ管理コマンド
+git-worktreeと連携したタスクブランチ管理
+- `haconiwa task new <name>` - 新しいタスクブランチ作成
+- `haconiwa task assign <task> <agent>` - タスクブランチ割り当て
+- `haconiwa task status` - タスクブランチ状態確認
 
 ### `watch` - 監視コマンド
-エージェントとタスクのリアルタイム監視
+エージェントとタスクブランチのリアルタイム監視
 - `haconiwa watch tail <target>` - リアルタイム監視
 - `haconiwa watch logs` - ログ表示
 
@@ -1479,8 +1505,8 @@ tmuxマルチエージェント環境のリアルタイム監視と可視化
 #### `tool parallel-dev` - Claude Code SDK並列実行機能
 高速並列ファイル編集のためのAI開発支援機能
 - `haconiwa tool parallel-dev claude` - Claude Code SDKでの並列編集実行
-- `haconiwa tool parallel-dev status` - 実行中タスクの状態確認
-- `haconiwa tool parallel-dev cancel <task-id>` - 実行中タスクのキャンセル
+- `haconiwa tool parallel-dev status` - 実行中タスクブランチの状態確認
+- `haconiwa tool parallel-dev cancel <task-id>` - 実行中タスクブランチのキャンセル
 - `haconiwa tool parallel-dev history` - 実行履歴表示
 
 **主な機能:**
@@ -1488,7 +1514,7 @@ tmuxマルチエージェント環境のリアルタイム監視と可視化
 - 📝 **柔軟なプロンプト指定**: ファイルごとに個別のプロンプト
 - 🎯 **セマフォ制御**: 同時実行数の制限でAPI負荷を管理
 - 📊 **リアルタイム進捗表示**: 処理状況の可視化
-- 🔧 **エラーハンドリング**: 個別失敗でも他タスクは継続
+- 🔧 **エラーハンドリング**: 個別失敗でも他タスクブランチは継続
 
 **使用例:**
 ```bash
@@ -1522,7 +1548,7 @@ haconiwa tool parallel-dev status
 - コアプロジェクト初期化フレームワーク
 - **tmux会社管理システム（company buildコマンド）**
 - **マルチエージェント4x4レイアウト自動構築**
-- **組織・タスク・デスクカスタマイズ機能**
+- **組織・タスクブランチ・デスクカスタマイズ機能**
 - **会社の自動存在チェックと更新機能**
 - **柔軟なクリーンアップシステム**
 - **📊 リアルタイムモニタリングシステム（monitor/mon コマンド）**
@@ -1540,7 +1566,7 @@ haconiwa tool parallel-dev status
 
 ### 🚧 開発中機能
 - AIエージェントの生成と管理 (プレースホルダー → 実装)
-- git-worktreeとのタスク管理 (プレースホルダー → 実装)
+- git-worktreeとのタスクブランチ管理 (プレースホルダー → 実装)
 - リソーススキャン機能 (プレースホルダー → 実装)
 - リアルタイム監視システム (プレースホルダー → 実装)
 - ワールド/環境管理 (プレースホルダー → 実装)
@@ -1653,13 +1679,13 @@ MIT License - 詳細は [LICENSE](LICENSE) ファイルをご覧ください。
 ## 📋 環境変数管理計画（Apply YAML）
 
 ### 概要
-Haconiwaの宣言型YAML設定に環境変数管理機能を追加します。シンプルなアプローチとして、apply時に指定した.envファイルを各タスクのgit worktreeディレクトリに自動コピーする方式を採用します。
+Haconiwaの宣言型YAML設定に環境変数管理機能を追加します。シンプルなアプローチとして、apply時に指定した.envファイルを各タスクブランチのgit worktreeディレクトリに自動コピーする方式を採用します。
 
 ### 1. シンプルな.envファイル自動コピー方式
 
 #### 基本コンセプト
 - apply時に`.env`ファイルを指定
-- 各タスクのgit worktreeディレクトリに自動的にコピー
+- 各タスクブランチのgit worktreeディレクトリに自動的にコピー
 - 各エージェントは自分のディレクトリの`.env`を読み込んで使用
 
 #### CLIコマンド使用例
@@ -1700,7 +1726,7 @@ REDIS_URL="redis://localhost:6379"
     ↓
 3. 複数ファイルの場合はマージ（後のファイルが優先）
     ↓
-4. git worktree作成時に各タスクディレクトリに.envをコピー
+4. git worktree作成時に各タスクブランチディレクトリに.envをコピー
     ↓
 5. 各エージェントは自分のディレクトリの.envを使用
 ```
@@ -1754,14 +1780,14 @@ spec:
 1. **シンプル**: 複雑な継承メカニズムが不要
 2. **標準的**: .envファイルは多くの開発者が慣れ親しんだ形式
 3. **柔軟**: 環境別に異なる.envファイルを簡単に切り替え可能
-4. **独立性**: 各タスクが独自の環境変数セットを持つ
+4. **独立性**: 各タスクブランチが独自の環境変数セットを持つ
 5. **互換性**: 既存のツールやライブラリと相性が良い
 
 ### 5. 実装時の考慮事項
 
 #### 5.1 .gitignoreの自動更新
 ```bash
-# タスクディレクトリ作成時に.gitignoreも自動生成
+# タスクブランチディレクトリ作成時に.gitignoreも自動生成
 echo ".env" >> ./tasks/task_backend_optimization_06/.gitignore
 echo ".env.local" >> ./tasks/task_backend_optimization_06/.gitignore
 echo ".env.*.local" >> ./tasks/task_backend_optimization_06/.gitignore
@@ -1821,7 +1847,7 @@ CREATED_AT={{TIMESTAMP}}
 
 4. **フェーズ4**: テンプレート機能
    - 動的な環境変数生成
-   - タスク固有の変数注入
+   - タスクブランチ固有の変数注入
 
 この方式により、シンプルで実用的な環境変数管理を実現し、各エージェントが必要な設定を簡単に利用できるようになります。
 

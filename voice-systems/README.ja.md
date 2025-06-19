@@ -6,7 +6,7 @@ Claude Code用の包括的な音声対話システムとコマンド実行許可
 
 - **高速音声応答**: OpenAI Realtime APIによる即座の音声フィードバック
 - **音声制御セキュリティ**: コマンド実行の音声認証
-- **TTS選択**: OpenAI Realtime (即座の応答) ⇔ Gemini TTS (タスク完了) の用途別使い分け
+- **TTS選択**: OpenAI Realtime (即座の応答) ⇔ Gemini TTS (タスクブランチ完了) の用途別使い分け
 - **AI音声認識**: Whisper + GPT-4oによる自然な意図理解
 
 ## ユーザーフロー
@@ -17,13 +17,13 @@ Claude Code用の包括的な音声対話システムとコマンド実行許可
 graph TD
     A[ユーザーがClaude Codeと対話開始] --> B[簡単な質問・回答]
     B --> C[OpenAI Realtimeで即座に音声応答]
-    C --> D[複雑なタスクの依頼]
+    C --> D[複雑なタスクブランチの依頼]
     D --> E[Claude Codeがコマンド実行を提案]
     E --> F[コマンド許可システム起動]
     F --> G[音声でPython、Claude、いいえを選択]
     G --> H[選択に応じてコマンド実行]
-    H --> I[Gemini TTSでタスク完了通知]
-    I --> J[次のタスクまたは終了]
+    H --> I[Gemini TTSでタスクブランチ完了通知]
+    I --> J[次のタスクブランチまたは終了]
 ```
 
 ### 1. 簡単な対話フロー
@@ -94,7 +94,7 @@ python voice-systems/openai-realtime/openai_realtime_test.py "テスト音声出
 
 #### Gemini TTS (`gemini-tts/`)
 - **ファイル**: `quick_tts_test.py` (推奨), `voice_notification.py`
-- **用途**: 複雑なタスク完了通知
+- **用途**: 複雑なタスクブランチ完了通知
 - **特徴**:
   - Gemini 2.5 Flash TTS
   - Zephyr音声モデル
@@ -140,7 +140,7 @@ python voice-systems/command-permission/command_permission.py "mkdir test" "テ�
 - **モデル**: gemini-2.5-flash-preview-tts
 - **音声**: Zephyr (自然・高品質)
 - **特徴**: ファイル生成型、安定した高品質音声
-- **最適用途**: 重要なタスク完了通知、詳細な説明
+- **最適用途**: 重要なタスクブランチ完了通知、詳細な説明
 
 ### 自動選択アルゴリズム
 システムが以下の基準で自動的にTTSを選択：
@@ -160,7 +160,7 @@ python voice-systems/command-permission/command_permission.py "mkdir test" "テ�
 |------|----------|------|
 | 簡単なQ&A | OpenAI Realtime | 高速・低レイテンシ |
 | 即座の応答 | OpenAI Realtime | ストリーミング再生 |
-| タスク完了 | Gemini TTS | 安定性・自然な音声 |
+| タスクブランチ完了 | Gemini TTS | 安定性・自然な音声 |
 | 複雑な処理 | Gemini TTS | 詳細説明に適している |
 
 ### コマンド実行許可
@@ -222,8 +222,8 @@ Claude Code設定ファイル: `.claude/settings.local.json`
 # 即座の応答
 python voice-systems/openai-realtime/openai_realtime_test.py "こんにちは"
 
-# タスク完了通知
-python voice-systems/gemini-tts/quick_tts_test.py "タスク完了"
+# タスクブランチ完了通知
+python voice-systems/gemini-tts/quick_tts_test.py "タスクブランチ完了"
 ```
 
 ### 2. コマンド実行テスト
@@ -245,9 +245,9 @@ python voice-systems/command-permission/simple_command_permission.py "pwd" "現�
 # Claude Code Settings for [プロジェクト名]
 
 ## 通知ルール
-**必須**: あらゆるタスク完了時は必ず音声通知を送信してください。例外はありません。
+**必須**: あらゆるタスクブランチ完了時は必ず音声通知を送信してください。例外はありません。
 
-### タスク別サウンドテンプレート
+### タスクブランチ別サウンドテンプレート
 
 #### 1. ファイル編集完了
 osascript -e 'display notification "📝 ファイル編集完了: [ファイル名]" with title "Claude Code" sound name "Tink"'
@@ -278,7 +278,7 @@ osascript -e 'display notification "💬 応答完了" with title "Claude Code" 
 - 設定ファイル更新後
 - 検索・解析完了後
 - コマンド実行完了後
-- **すべてのタスク完了時**
+- **すべてのタスクブランチ完了時**
 
 ## 音声通知ルール
 ### 状況別TTS使い分け
@@ -298,12 +298,12 @@ osascript -e 'display notification "💬 応答完了" with title "Claude Code" 
 **使用例**:
 python voice-systems/openai-realtime/openai_realtime_test.py "応答内容"
 
-#### Gemini TTS (複雑なタスク・処理完了通知用)
+#### Gemini TTS (複雑なタスクブランチ・処理完了通知用)
 **使用場面**:
 - ファイル作成・編集完了
 - 複数ステップの処理完了
 - 長時間処理の完了通知
-- 複雑なタスクの完了報告
+- 複雑なタスクブランチの完了報告
 
 **特徴**:
 - Gemini 2.5 Flash TTS使用

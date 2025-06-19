@@ -2,7 +2,7 @@
 
 ## 基本情報
 - **エージェントID**: `cfo-tanaka`
-- **タスク名**: `task_financial_planning_03`
+- **タスクブランチ名**: `task_financial_planning_03`
 - **割り当て日時**: 2025-06-14T18:33:03.010894
 - **ステータス**: active
 
@@ -10,7 +10,7 @@
 - **スペースセッション**: `haconiwa-dev-company`
 - **tmuxウィンドウ**: None
 - **tmuxペイン**: None
-- **タスクディレクトリ**: `haconiwa-dev-world/tasks/task_financial_planning_03`
+- **タスクブランチディレクトリ**: `haconiwa-dev-world/tasks/task_financial_planning_03`
 
 ## エージェント役割
 **役割**: 未定義
@@ -42,12 +42,12 @@
    - YAMLに直接内容を記述する機能は実装しない
 
 3. **適用範囲**
-   - `targetCompany` で指定したカンパニー内の全タスクに適用
-   - 階層構造（Room、役職、タスク単位）での適用は実装しない
+   - `targetCompany` で指定したカンパニー内の全タスクブランチに適用
+   - 階層構造（Room、役職、タスクブランチ単位）での適用は実装しない
 
 4. **ファイル配置**
-   - 各タスクディレクトリの `.claude/settings.local.json` に配置
-   - 各タスクディレクトリの `CLAUDE.md` に配置
+   - 各タスクブランチディレクトリの `.claude/settings.local.json` に配置
+   - 各タスクブランチディレクトリの `CLAUDE.md` に配置
 
 ## YAML仕様
 
@@ -154,7 +154,7 @@ spec:
 ## 実装しない機能（将来実装）
 
 - 他のAIプロバイダー（copilot、cursor、codeium）
-- 階層構造での適用（Room単位、役職単位、タスク単位）
+- 階層構造での適用（Room単位、役職単位、タスクブランチ単位）
 - YAML内での設定内容の直接記述
 - 複数AICodeConfigの優先順位処理
 - テンプレート変数の展開
@@ -163,7 +163,7 @@ spec:
 ## 成功基準
 
 1. AICodeConfig CRDが正しくパースされる
-2. 指定したカンパニーの全タスクに設定ファイルがコピーされる
+2. 指定したカンパニーの全タスクブランチに設定ファイルがコピーされる
 3. `.claude/settings.local.json` が正しい場所に配置される
 4. `CLAUDE.md` が正しい場所に配置される
 

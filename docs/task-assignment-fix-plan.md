@@ -1,8 +1,8 @@
-# タスク投入コマンド設計書
+# タスクブランチ投入コマンド設計書
 
 ## 概要
 
-既存のカンパニー（tmuxセッション）に対して動的にタスクを投入するための新しいCLIコマンドを追加します。このコマンドにより、YAMLファイルを作成することなく、コマンドラインから直接タスクを作成し、エージェントに割り当てることが可能になります。
+既存のカンパニー（tmuxセッション）に対して動的にタスクブランチを投入するための新しいCLIコマンドを追加します。このコマンドにより、YAMLファイルを作成することなく、コマンドラインから直接タスクブランチを作成し、エージェントに割り当てることが可能になります。
 
 ### 主な特徴
 - **Git worktreeの自動作成**: 現在のブランチから新規ブランチを作成し、専用のディレクトリ（worktree）を生成
@@ -21,14 +21,14 @@ haconiwa task submit [OPTIONS]
 
 | オプション | 短縮形 | 必須 | デフォルト | 説明 |
 |-----------|-------|------|-----------|------|
-| `--company` | `-c` | ✓ | - | タスクを投入するカンパニー名 |
-| `--assignee` | `-a` | ✓ | - | タスクを割り当てるエージェントID |
-| `--title` | `-t` | ✓ | - | タスクのタイトル |
-| `--description` | `-d` | ✗ | "" | タスクの詳細説明（マークダウン対応） |
-| `--description-file` | `-f` | ✗ | - | タスク詳細を記載したマークダウンファイル |
+| `--company` | `-c` | ✓ | - | タスクブランチを投入するカンパニー名 |
+| `--assignee` | `-a` | ✓ | - | タスクブランチを割り当てるエージェントID |
+| `--title` | `-t` | ✓ | - | タスクブランチのタイトル |
+| `--description` | `-d` | ✗ | "" | タスクブランチの詳細説明（マークダウン対応） |
+| `--description-file` | `-f` | ✗ | - | タスクブランチ詳細を記載したマークダウンファイル |
 | `--branch` | `-b` | ✓ | - | 新規ブランチ名（ディレクトリ名にもなる） |
 | `--base-branch` | - | ✗ | 現在のブランチ | worktreeのベースとなるブランチ |
-| `--priority` | `-p` | ✗ | "medium" | タスクの優先度 (high/medium/low) |
+| `--priority` | `-p` | ✗ | "medium" | タスクブランチの優先度 (high/medium/low) |
 | `--room` | `-r` | ✗ | 自動検出 | 特定のルーム（tmux window）を指定 |
 | `--worktree-path` | - | ✗ | ./tasks/{branch} | worktreeを作成するパス |
 | `--dry-run` | - | ✗ | False | 実行内容を表示するが実際には実行しない |
@@ -38,14 +38,14 @@ haconiwa task submit [OPTIONS]
 ### 基本的な使用例
 
 ```bash
-# 最小限の指定でタスク投入（現在のブランチから新規ブランチを作成）
+# 最小限の指定でタスクブランチ投入（現在のブランチから新規ブランチを作成）
 haconiwa task submit \
   -c haconiwa-dev-company \
   -a "ai-engineer-01" \
   -t "APIエンドポイントの実装" \
   -b "feature/api-endpoints"
 
-# 詳細な説明付きでタスク投入（インライン）
+# 詳細な説明付きでタスクブランチ投入（インライン）
 haconiwa task submit \
   -c haconiwa-dev-company \
   -a "frontend-lead" \
@@ -91,7 +91,7 @@ haconiwa task submit \
 ### 高度な使用例
 
 ```bash
-# 複数タスクの一括投入（スクリプト例）
+# 複数タスクブランチの一括投入（スクリプト例）
 #!/bin/bash
 haconiwa task submit -c my-company -a "frontend-01" -t "Header component" -b "feature/header"
 haconiwa task submit -c my-company -a "frontend-02" -t "Footer component" -b "feature/footer"
@@ -107,7 +107,7 @@ for feature in "auth" "profile" "settings"; do
     --base-branch "develop"
 done
 
-# マークダウンファイルを使った複数タスクの投入
+# マークダウンファイルを使った複数タスクブランチの投入
 for task in tasks/*.md; do
   task_name=$(basename "$task" .md)
   haconiwa task submit \
@@ -118,7 +118,7 @@ for task in tasks/*.md; do
     -f "$task"
 done
 
-# 実行例：タスク投入後の状態確認
+# 実行例：タスクブランチ投入後の状態確認
 haconiwa task submit \
   -c my-company \
   -a "ai-engineer-01" \
@@ -192,7 +192,7 @@ cat > task-spec.md << 'EOF'
 - [OAuth 2.0 仕様書](https://example.com/oauth2-spec)
 EOF
 
-# マークダウンファイルを使ってタスク投入
+# マークダウンファイルを使ってタスクブランチ投入
 haconiwa task submit \
   -c my-company \
   -a "senior-backend-dev" \
@@ -235,7 +235,7 @@ haconiwa task submit \
    - 割り当てログの作成（`.haconiwa/agent_assignment.json`）
 
 5. **通知と確認**
-   - タスク作成の成功メッセージ表示
+   - タスクブランチ作成の成功メッセージ表示
    - 作成されたworktreeパスの表示
    - エージェントの移動完了確認
 
@@ -300,7 +300,7 @@ class TaskSubmitter:
         room: Optional[str] = None,
         worktree_path: Optional[str] = None
     ) -> Task:
-        """既存のカンパニーにタスクを投入"""
+        """既存のカンパニーにタスクブランチを投入"""
         # 1. 説明の処理
         if description_file and description:
             raise ValueError("Cannot specify both --description and --description-file")
@@ -325,7 +325,7 @@ class TaskSubmitter:
         # 6. エージェントをworktreeディレクトリに移動
         self._move_agent_to_worktree(pane_info, worktree_path)
         
-        # 7. タスクオブジェクトの作成と保存
+        # 7. タスクブランチオブジェクトの作成と保存
         task = self._create_task(
             title=title,
             branch=branch,
@@ -371,21 +371,21 @@ def submit_task(
 ## 他機能との連携
 
 ### monitorコマンドとの連携
-- タスク投入後、`haconiwa monitor`で即座に反映を確認可能
+- タスクブランチ投入後、`haconiwa monitor`で即座に反映を確認可能
 - エージェントのステータスが「仕事待ち」から「作業中」に変化
 
 ### YAMLファイルとの相互運用
-- `task submit`で作成したタスクも`.haconiwa/tasks/`に記録
+- `task submit`で作成したタスクブランチも`.haconiwa/tasks/`に記録
 - 後からYAMLエクスポート可能
 
 ### ログとトレーサビリティ
-- すべてのタスク投入は`.haconiwa/task_history.json`に記録
+- すべてのタスクブランチ投入は`.haconiwa/task_history.json`に記録
 - エージェント割り当て履歴の追跡が可能
 
 ## 将来の拡張性
 
 1. **バルク投入機能**
-   - CSVやJSONファイルからの一括タスク投入
+   - CSVやJSONファイルからの一括タスクブランチ投入
    - テンプレート機能
 
 2. **インテリジェント割り当て**
@@ -393,11 +393,11 @@ def submit_task(
    - スキルマッチングによる最適化
 
 3. **ワークフロー統合**
-   - 依存関係のあるタスクチェーンの定義
+   - 依存関係のあるタスクブランチチェーンの定義
    - 承認フローの実装
 
 4. **通知機能**
-   - タスク完了時の通知
+   - タスクブランチ完了時の通知
    - Slack/Discord統合
 
 ## テスト計画
@@ -417,10 +417,10 @@ def submit_task(
 
 ## まとめ
 
-この`task submit`コマンドにより、Haconiwaの柔軟性が大幅に向上します。YAMLファイルによる静的な定義と、コマンドラインからの動的なタスク投入の両方をサポートすることで、さまざまな開発ワークフローに対応できるようになります。
+この`task submit`コマンドにより、Haconiwaの柔軟性が大幅に向上します。YAMLファイルによる静的な定義と、コマンドラインからの動的なタスクブランチ投入の両方をサポートすることで、さまざまな開発ワークフローに対応できるようになります。
 
 ### 主な利点
-- **動的なタスク投入**: 実行中のカンパニーに柔軟にタスクを追加
+- **動的なタスクブランチ投入**: 実行中のカンパニーに柔軟にタスクブランチを追加
 - **マークダウンファイル対応**: 詳細な仕様書をファイルから読み込み可能
-- **Git worktree統合**: 各タスクが独立した作業環境を持つ
-- **自動エージェント移動**: タスク割り当て時にエージェントが自動的に適切なディレクトリに移動
+- **Git worktree統合**: 各タスクブランチが独立した作業環境を持つ
+- **自動エージェント移動**: タスクブランチ割り当て時にエージェントが自動的に適切なディレクトリに移動
