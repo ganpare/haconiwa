@@ -1,18 +1,13 @@
-# 🎤 Voice Systems - Revolutionary AI Voice Integration
+# Voice Systems
 
-**Transform your Claude Code experience with intelligent voice interaction and security**
+A comprehensive voice interaction system and command execution permission system for Claude Code.
 
-A comprehensive voice interaction system and command execution permission system for Claude Code that brings natural conversation and voice-controlled security to your development workflow.
+## Features
 
-## ✨ Revolutionary Features
-
-🚀 **Ultra-fast voice responses**: Experience lightning-fast audio feedback with OpenAI Realtime API - no more waiting for text responses!
-
-🔒 **Voice-controlled security**: Revolutionary voice authorization system that speaks to you and listens to your commands for safe execution
-
-🎯 **Intelligent TTS selection**: Seamlessly switches between OpenAI Realtime (instant responses) ⇔ Gemini TTS (task completion) based on context
-
-🧠 **Advanced AI voice recognition**: Natural intent understanding powered by Whisper + GPT-4o - just speak naturally!
+- **Fast voice responses**: Immediate audio feedback using OpenAI Realtime API
+- **Voice-controlled security**: Voice authorization for command execution
+- **TTS selection**: OpenAI Realtime (instant responses) ⇔ Gemini TTS (task completion) usage-specific switching
+- **AI voice recognition**: Natural intent understanding with Whisper + GPT-4o
 
 ## User Flow
 

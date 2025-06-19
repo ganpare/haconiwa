@@ -25,7 +25,7 @@ def save_binary_file(file_name, data):
 def play_audio_file(filename: str):
     """音声ファイルを再生"""
     try:
-        subprocess.run(["afplay", "-v", "0.2", filename], check=True)
+        subprocess.run(["afplay", "-v", "0.4", filename], check=True)
         print(f"音声再生完了: {filename}")
     except subprocess.CalledProcessError as e:
         print(f"音声再生エラー: {e}")
