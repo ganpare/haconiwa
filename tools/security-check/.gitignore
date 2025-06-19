@@ -1,0 +1,25 @@
+# 個人用設定ファイル - コミットしない
+nglist.json
+personal_config.json
+user_settings.json
+
+# 実行時に生成されるファイル
+*.log
+security_report.json
+temp_*
+
+# Python関連
+__pycache__/
+*.pyc
+*.pyo
+
+# エディタ関連
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS関連
+.DS_Store
+Thumbs.db

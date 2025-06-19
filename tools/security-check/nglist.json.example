@@ -1,0 +1,70 @@
+{
+  "description": "個人用NGワードリスト - このファイルをnglist.jsonにコピーして使用してください",
+  "version": "1.1.0",
+  "user_specific_patterns": {
+    "personal_paths": {
+      "patterns": [
+        "/Users/your_username",
+        "/home/your_username",
+        "C:\\\\Users\\\\your_username"
+      ],
+      "severity": "ERROR",
+      "description": "個人のフルパス"
+    },
+    "personal_emails": {
+      "patterns": [
+        "dai\\.motoki1123@gmail\\.com",
+        "your_email@company\\.com"
+      ],
+      "severity": "WARNING", 
+      "description": "個人のメールアドレス"
+    },
+    "personal_domains": {
+      "patterns": [
+        "mydomain\\.local",
+        "internal\\.mycompany\\.com"
+      ],
+      "severity": "WARNING",
+      "description": "個人/組織固有のドメイン"
+    },
+    "api_key_prefixes": {
+      "patterns": [
+        "sk-proj-[a-zA-Z0-9]{20,}",
+        "gho_[a-zA-Z0-9]{20,}",
+        "ghp_[a-zA-Z0-9]{20,}"
+      ],
+      "severity": "ERROR",
+      "description": "特定のAPIキープレフィックス"
+    }
+  },
+  "whitelist_patterns": {
+    "safe_placeholders": [
+      "your_username",
+      "your_email",
+      "your_api_key",
+      "motokidaisuke",
+      "username",
+      "example",
+      "placeholder",
+      "sample",
+      "dummy"
+    ],
+    "safe_domains": [
+      "example.com",
+      "test.example.org",
+      "localhost",
+      "127.0.0.1"
+    ]
+  },
+  "env_files": {
+    "description": "環境変数ファイルの内容を無視するファイル一覧",
+    "files": [
+      ".env",
+      ".env.local",
+      ".env.development",
+      ".env.production",
+      ".env.staging",
+      ".env.test"
+    ]
+  }
+}
