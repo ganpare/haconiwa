@@ -20,7 +20,7 @@ graph TD
     C --> D[Complex task request]
     D --> E[Claude Code suggests command execution]
     E --> F[Command permission system activates]
-    F --> G[Voice selection: "Python", "Claude", or "No"]
+    F --> G[Voice selection: Python, Claude, or No]
     G --> H[Execute command based on selection]
     H --> I[Gemini TTS announces task completion]
     I --> J[Next task or end session]
@@ -239,25 +239,154 @@ osascript -e 'display notification "🔨 Build complete" with title "Claude Code
 osascript -e 'display notification "✅ Tests completed ([result])" with title "Claude Code" sound name "Glass"'
 ```
 
-## Voice Notification Rules
-### Voice System Usage
-- **Simple responses**: OpenAI Realtime API
-- **Task completion**: Gemini TTS
-
+#### 4. Search/Analysis Complete
 ```bash
-# Simple responses
-python voice-systems/openai-realtime/openai_realtime_test.py "Response content"
+osascript -e 'display notification "🔍 Search/Analysis complete" with title "Claude Code" sound name "Ping"'
+```
 
-# Complex task completion
-python voice-systems/gemini-tts/quick_tts_test.py "Task completion content"
+#### 5. Installation/Setup Complete
+```bash
+osascript -e 'display notification "📦 Installation/Setup complete" with title "Claude Code" sound name "Funk"'
+```
+
+#### 6. Daily Conversation/Simple Response
+```bash
+osascript -e 'display notification "💬 Response complete" with title "Claude Code" sound name "Pop"'
+```
+
+### Scenarios Requiring Notifications (All Mandatory)
+- After file editing completion
+- After long-running processes completion (10+ seconds)
+- After build or test execution completion
+- After package installation completion
+- After multiple file processing completion
+- After error fixing completion
+- After user request completion
+- After configuration file updates
+- After search/analysis completion
+- After command execution completion
+- **After ALL task completions**
+
+## Voice Notification Rules
+### Situation-Based TTS Usage
+
+#### OpenAI Realtime API (Simple Interaction & Immediate Response)
+**Usage Scenarios**:
+- Simple question responses
+- Content that can be answered immediately
+- Short-duration responses
+- Interactive exchanges
+
+**Features**:
+- Ultra-fast voice synthesis (Shimmer voice)
+- Volume adjusted to 50%
+- Streaming playback with error recovery functionality
+
+**Usage Examples**:
+```bash
+python voice-systems/openai-realtime/openai_realtime_test.py "Response content"
+```
+
+#### Gemini TTS (Complex Tasks & Process Completion Notifications)
+**Usage Scenarios**:
+- File creation/editing completion
+- Multi-step process completion
+- Long-running process completion notifications
+- Complex task completion reports
+
+**Features**:
+- Uses Gemini 2.5 Flash TTS
+- Zephyr voice model
+- Natural, human-like speech
+
+**Usage Examples**:
+```bash
+python voice-systems/gemini-tts/quick_tts_test.py "File editing complete"
+python voice-systems/gemini-tts/quick_tts_test.py "Build complete"
+python voice-systems/gemini-tts/quick_tts_test.py "Test execution complete"
 ```
 
 ## Command Execution Rules
-**Required**: Use permission system before all Bash command execution.
+**Required**: Command permission system must be used before all Bash command execution.
 
+### Full-Featured Version (Voice Recognition) [Recommended]
 ```bash
-python voice-systems/command-permission/command_permission.py "<command>" "<description>"
+python voice-systems/command-permission/command_permission.py "<command>" "<clear Japanese description>"
 ```
+
+### Simple Version
+```bash
+python voice-systems/command-permission/simple_command_permission.py "<command>" "<clear Japanese description>"
+```
+
+**Without exception, use this system before using Claude Code's Bash tools.**
+
+### New Feature: Execution Method Selection
+The command permission system provides the following options:
+
+1. **[P] Python Execution** - Direct execution within script
+   - Immediate execution and result confirmation
+   - Voice completion notifications
+   - Voice feedback on errors
+
+2. **[C] Claude Execution** - Execute via Claude Code (traditional method)
+   - Execute through Claude Code tools
+   - Safer execution environment
+
+3. **[N] Do Not Execute** - Cancel
+   - Cancel command execution
+
+### Usage Examples and Workflow
+
+#### Safe Commands (In Whitelist)
+```bash
+python voice-systems/command-permission/command_permission.py "git status" "Check Git status"
+python voice-systems/command-permission/command_permission.py "ls -la" "List directory contents"
+```
+→ Light notification sound only, showing approved status
+
+#### Dangerous Commands (Not in Whitelist)
+```bash
+python voice-systems/command-permission/command_permission.py "rm -rf old_files" "Delete old files"
+python voice-systems/command-permission/command_permission.py "npm install express" "Install Express package"
+python voice-systems/command-permission/command_permission.py "git push origin main" "Push to main branch"
+```
+→ Warning sound + voice "Not in whitelist. Execute [description]?"
+
+### Second Argument Guidelines
+The second argument should contain **Japanese description that will be read aloud as-is**:
+
+#### Good Examples
+- `"Delete old files"`
+- `"Install Express package"`
+- `"Create database backup"`
+- `"Compress log files"`
+- `"Restart development server"`
+
+#### Examples to Avoid
+- `"Execute rm -rf old_files"` (Too technical)
+- `"File deletion command"` (Vague)
+- `"dangerous operation"` (English)
+
+### [Strict Adherence] Execution Flow
+1. **Required**: `python voice-systems/command-permission/command_permission.py "command" "description"` check
+2. Wait for voice confirmation if not in whitelist
+3. **Then**: Execute actual command with Claude Code Bash tools
+4. Complete
+
+### Important Notes
+- **Direct Bash command execution in Claude Code is prohibited**
+- **Command permission system must be executed first**
+- **There are no exceptions to this rule**
+
+### Prohibited Actions
+❌ Direct execution like `Bash(tree voice-systems)`
+❌ Skipping command permission system
+❌ Ignoring rules for "emergency" reasons
+
+✅ Correct procedure:
+1. `python voice-systems/command-permission/command_permission.py "tree voice-systems" "Check directory structure"`
+2. After voice confirmation completion, execute `Bash(tree voice-systems)`
 ```
 
 ## Development Notes
