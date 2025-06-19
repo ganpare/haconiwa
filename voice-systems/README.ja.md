@@ -1,13 +1,18 @@
-# Voice Systems
+# 🎤 Voice Systems - 革命的なAI音声統合システム
 
-Claude Code用の包括的な音声対話システムとコマンド実行許可システムです。
+**Claude Codeを音声で操る次世代開発体験**
 
-## 機能
+Claude Code用の包括的な音声対話システムとコマンド実行許可システム。自然な会話と音声制御セキュリティで、あなたの開発ワークフローを革新します。
 
-- **高速音声応答**: OpenAI Realtime APIによる即座の音声フィードバック
-- **音声制御セキュリティ**: コマンド実行の音声認証
-- **TTS選択**: OpenAI Realtime (即座の応答) ⇔ Gemini TTS (タスク完了) の用途別使い分け
-- **AI音声認識**: Whisper + GPT-4oによる自然な意図理解
+## ✨ 革命的な機能
+
+🚀 **超高速音声応答**: OpenAI Realtime APIで体験する電光石火の音声フィードバック - もうテキストを待つ必要はありません！
+
+🔒 **音声制御セキュリティ**: あなたに話しかけ、あなたの声を聞く革命的な音声認証システムで安全な実行を実現
+
+🎯 **インテリジェントTTS選択**: コンテキストに応じてOpenAI Realtime（即座の応答）⇔ Gemini TTS（タスク完了）を自動切り替え
+
+🧠 **先進AI音声認識**: Whisper + GPT-4oによる自然な意図理解 - 普通に話すだけでOK！
 
 ## ユーザーフロー
 
@@ -250,34 +255,22 @@ python voice-systems/command-permission/simple_command_permission.py "pwd" "現�
 ### タスク別サウンドテンプレート
 
 #### 1. ファイル編集完了
-```bash
 osascript -e 'display notification "📝 ファイル編集完了: [ファイル名]" with title "Claude Code" sound name "Tink"'
-```
 
 #### 2. ビルド・コンパイル完了
-```bash
 osascript -e 'display notification "🔨 ビルド完了" with title "Claude Code" sound name "Hero"'
-```
 
 #### 3. テスト実行完了
-```bash
 osascript -e 'display notification "✅ テスト実行完了 ([結果])" with title "Claude Code" sound name "Glass"'
-```
 
 #### 4. 検索・分析完了
-```bash
 osascript -e 'display notification "🔍 検索・分析完了" with title "Claude Code" sound name "Ping"'
-```
 
 #### 5. インストール・設定完了
-```bash
 osascript -e 'display notification "📦 インストール・設定完了" with title "Claude Code" sound name "Funk"'
-```
 
 #### 6. 日常会話・簡単な応答
-```bash
 osascript -e 'display notification "💬 応答完了" with title "Claude Code" sound name "Pop"'
-```
 
 ### 通知が必要な場面（すべて必須）
 - ファイル編集完了後
@@ -308,9 +301,7 @@ osascript -e 'display notification "💬 応答完了" with title "Claude Code" 
 - ストリーミング再生でエラー回復機能付き
 
 **使用例**:
-```bash
 python voice-systems/openai-realtime/openai_realtime_test.py "応答内容"
-```
 
 #### Gemini TTS (複雑なタスク・処理完了通知用)
 **使用場面**:
@@ -325,24 +316,18 @@ python voice-systems/openai-realtime/openai_realtime_test.py "応答内容"
 - 自然で人間らしい発話
 
 **使用例**:
-```bash
 python voice-systems/gemini-tts/quick_tts_test.py "ファイル編集完了"
 python voice-systems/gemini-tts/quick_tts_test.py "ビルド完了"
 python voice-systems/gemini-tts/quick_tts_test.py "テスト実行完了"
-```
 
 ## コマンド実行ルール
 **必須**: すべてのBashコマンド実行前に、必ずコマンド許可システムを使用してください。
 
 ### 高機能版（音声認識対応）【推奨】
-```bash
 python voice-systems/command-permission/command_permission.py "<コマンド>" "<分かりやすい日本語説明>"
-```
 
 ### シンプル版
-```bash
 python voice-systems/command-permission/simple_command_permission.py "<コマンド>" "<分かりやすい日本語説明>"
-```
 
 **例外なく、このシステムを経由してからClaude CodeのBashツールを使用すること。**
 
@@ -364,37 +349,33 @@ python voice-systems/command-permission/simple_command_permission.py "<コマン
 ### 使用例とワークフロー
 
 #### 安全なコマンド（ホワイトリスト内）
-```bash
 python voice-systems/command-permission/command_permission.py "git status" "Git状態確認"
 python voice-systems/command-permission/command_permission.py "ls -la" "ファイル一覧表示"
-```
 → 軽い通知音のみで許可済みを表示
 
 #### 危険なコマンド（ホワイトリスト外）
-```bash
 python voice-systems/command-permission/command_permission.py "rm -rf old_files" "古いファイルの削除"
 python voice-systems/command-permission/command_permission.py "npm install express" "Expressパッケージのインストール"
 python voice-systems/command-permission/command_permission.py "git push origin main" "メインブランチへのプッシュ"
-```
 → 警告音 + 音声「ホワイトリストにございません。[説明]を実行しますか？」
 
 ### 第二引数の書き方
 第二引数には**そのまま音声で読み上げられる日本語説明**を記述してください：
 
 #### 良い例
-- `"古いファイルの削除"`
-- `"Expressパッケージのインストール"`
-- `"データベースのバックアップ作成"`
-- `"ログファイルの圧縮"`
-- `"開発サーバーの再起動"`
+- "古いファイルの削除"
+- "Expressパッケージのインストール"
+- "データベースのバックアップ作成"
+- "ログファイルの圧縮"
+- "開発サーバーの再起動"
 
 #### 避けるべき例
-- `"rm -rf old_files実行"` （技術的すぎる）
-- `"ファイル削除コマンド"` （曖昧）
-- `"dangerous operation"` （英語）
+- "rm -rf old_files実行" （技術的すぎる）
+- "ファイル削除コマンド" （曖昧）
+- "dangerous operation" （英語）
 
 ### 【厳守】実行フロー
-1. **必須**: `python voice-systems/command-permission/command_permission.py "コマンド" "説明"` でチェック
+1. **必須**: python voice-systems/command-permission/command_permission.py "コマンド" "説明" でチェック
 2. ホワイトリスト外なら音声確認を待つ
 3. **その後**: Claude CodeのBashツールで実際のコマンド実行
 4. 完了
@@ -405,13 +386,13 @@ python voice-systems/command-permission/command_permission.py "git push origin m
 - **このルールに例外はありません**
 
 ### 禁止事項
-❌ 直接 `Bash(tree voice-systems)` のような実行
+❌ 直接 Bash(tree voice-systems) のような実行
 ❌ コマンド許可システムをスキップした実行
 ❌ 「緊急だから」という理由でのルール無視
 
 ✅ 正しい手順:
-1. `python voice-systems/command-permission/command_permission.py "tree voice-systems" "ディレクトリ構造の確認"`
-2. 音声確認完了後、`Bash(tree voice-systems)` 実行
+1. python voice-systems/command-permission/command_permission.py "tree voice-systems" "ディレクトリ構造の確認"
+2. 音声確認完了後、Bash(tree voice-systems) 実行
 ```
 
 ## 開発メモ
