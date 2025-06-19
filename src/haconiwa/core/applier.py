@@ -251,8 +251,12 @@ class CRDApplier:
                 logger.info(f"🔄 Running log-based pane update for space: {space_ref}")
                 
                 # First try the new direct assignment method
-                base_path = Path(f"./{space_ref.replace('-company', '-world')}")
-                if not base_path.exists():
+                # Get Organization base path for this space
+                org_base_path = self._get_organization_base_path(space_ref)
+                if org_base_path:
+                    base_path = Path(org_base_path)
+                else:
+                    # Fallback to space_ref directory
                     base_path = Path(f"./{space_ref}")
                 
                 if base_path.exists():
@@ -1032,6 +1036,21 @@ class CRDApplier:
                 framework_dict[key] = getattr(legal_framework, attr)
         
         return framework_dict
+    
+    def _get_organization_base_path(self, space_ref: str) -> str:
+        """Get Organization base path for the given space_ref"""
+        try:
+            # Find Organization CRD that matches the space_ref company
+            for resource_key, resource in self.applied_resources.items():
+                if resource_key.startswith("Organization/") and hasattr(resource, 'spec'):
+                    # Check if this organization references the space
+                    # For now, use a simple naming convention match
+                    if space_ref in resource_key or resource.spec.basePath:
+                        return resource.spec.basePath
+            return None
+        except Exception as e:
+            logger.error(f"Error getting organization base path: {e}")
+            return None
     
     def get_applied_resources(self) -> dict:
         """Get list of applied resources"""

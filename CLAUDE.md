@@ -19,6 +19,22 @@
 
 ## Available Commands
 
+### Haconiwa Apply Commands
+
+#### Haconiwa Apply
+```bash
+# Haconiwa Dev Company
+haconiwa apply -f haconiwa-dev-company.yaml --no-attach
+
+# KAMUI Dev Company  
+haconiwa apply -f kamui-dev-company.yaml --no-attach
+```
+
+**使用場面**:
+- 「Haconiwa apply」「HaconiwaのApply」→ `haconiwa-dev-company.yaml`
+- 「KAMUI apply」「KAMUIのApply」→ `kamui-dev-company.yaml`
+- アタッチしない方が安全なため `--no-attach` を推奨
+
 ### ripgrep (rg)
 Fast file content search tool:
 - **Use `rg` command directly** (not `~/bin/rg` or other paths)
@@ -125,6 +141,35 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 3. **緊急時**: `git commit --no-verify` でスキップ（非推奨）
 
 ## Voice Notification Systems
+
+### 【重要】音声応答ルール
+
+#### 禁止事項
+❌ **`say`コマンドを絶対に使用しない**
+- macOSの`say`コマンドは使用禁止
+- 音声合成には専用のPythonスクリプトを使用すること
+
+#### ASA Script実行時のルール
+✅ **ASA Script使用時は必ずTTSシステムも併用する**
+- ASA Script（AppleScript）実行時は同時にTTSで音声通知を行う
+- `&&`でつなげて一つのコマンドとして実行すること
+- 実行忘れを防ぐため、必ず連結して実行する
+
+**使用例**:
+```bash
+# 正しい書き方：&&でつなげて実行
+osascript -e 'display notification "完了" with title "Claude Code"' && python voice-systems/gemini-tts/quick_tts_test.py "処理完了"
+
+# 通知 + TTS
+osascript -e 'display notification "ファイル編集完了" with title "Claude Code" sound name "Tink"' && python voice-systems/gemini-tts/quick_tts_test.py "ファイル編集完了"
+```
+
+**禁止**:
+```bash
+# ❌ 別々に実行（忘れやすい）
+osascript -e '...'
+python voice-systems/gemini-tts/quick_tts_test.py "..."
+```
 
 ### 状況別TTS使い分けルール
 

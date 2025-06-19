@@ -257,7 +257,7 @@ spec:
         companies:
         - name: haconiwa-dev-company
           grid: "8x4"
-          basePath: "./haconiwa-dev-world"
+          basePath: "./haconiwa-dev-company"
           organizationRef: "haconiwa-dev-company-org"
           agentDefaults:
             type: "claude-code"

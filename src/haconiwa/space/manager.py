@@ -1728,9 +1728,17 @@ class SpaceManager:
             updated_count = 0
             
             # Get base path from space_ref
-            base_path = Path(f"./{space_ref.replace('-company', '-world')}")
-            if not base_path.exists():
-                # Try alternative paths
+            # Try to get organization base path first from current applier instance
+            import sys
+            org_base_path = None
+            if hasattr(sys.modules['__main__'], '_current_applier'):
+                applier = sys.modules['__main__']._current_applier
+                org_base_path = applier._get_organization_base_path(space_ref)
+            
+            if org_base_path:
+                base_path = Path(org_base_path)
+            else:
+                # Fallback to space_ref directory
                 base_path = Path(f"./{space_ref}")
                 if not base_path.exists():
                     base_path = Path("./test-world-multiroom-tasks")

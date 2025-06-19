@@ -98,13 +98,19 @@ class TmuxMonitor:
     def load_agent_mappings(self):
         """エージェントIDマッピングをdesk_mappings.jsonから読み込み"""
         try:
-            # セッション名からワールドディレクトリ名を推測
-            # haconiwa-dev-company -> haconiwa-dev-world
-            world_dir = self.session_name.replace('-company', '-world')
+            # セッション名から組織ディレクトリ名を取得
+            # Try to get organization base path from applier if available
+            import sys
+            org_base_path = None
+            if hasattr(sys.modules['__main__'], '_current_applier'):
+                applier = sys.modules['__main__']._current_applier
+                org_base_path = applier._get_organization_base_path(self.session_name)
+            
+            org_dir = org_base_path.replace('./', '') if org_base_path else self.session_name
             
             # 複数の可能なパスを試行
             possible_paths = [
-                f"{world_dir}/.haconiwa/desk_mappings.json",
+                f"{org_dir}/.haconiwa/desk_mappings.json",
                 f"{self.session_name}/.haconiwa/desk_mappings.json",
                 f".haconiwa/desk_mappings.json"
             ]
