@@ -211,6 +211,7 @@ def apply(
                 # Attach to session (this will transfer control to tmux)
                 typer.echo(f"🚀 Attaching to {session_name}/{room}...")
                 typer.echo("💡 Press Ctrl+B then D to detach from tmux session")
+                typer.echo(f"🗑️ To delete: haconiwa space delete -c {session_name} --clean-dirs --force")
                 
                 # Use execvp to replace current process with tmux attach
                 os.execvp('tmux', ['tmux', 'attach-session', '-t', session_name])
@@ -227,6 +228,7 @@ def apply(
         elif not should_attach and created_sessions:
             typer.echo(f"\n💡 Session created: {created_sessions[0]}")
             typer.echo(f"   To attach: haconiwa space attach -c {created_sessions[0]} -r {room}")
+            typer.echo(f"   To delete: haconiwa space delete -c {created_sessions[0]} --clean-dirs --force")
     
     except CRDValidationError as e:
         typer.echo(f"❌ Validation error: {e}", err=True)
