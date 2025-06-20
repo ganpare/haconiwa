@@ -1,0 +1,37 @@
+{
+  "description": "セキュリティチェック設定ファイル",
+  "version": "1.0.0",
+  "settings": {
+    "strict_mode": false,
+    "auto_fix": false,
+    "ignore_warnings": false
+  },
+  "custom_patterns": {
+    "organization_specific": {
+      "patterns": [
+        "internal\\.company\\.com",
+        "staging\\.[a-zA-Z0-9-]+\\.internal"
+      ],
+      "severity": "WARNING",
+      "description": "組織内部URL"
+    }
+  },
+  "excluded_extensions": [
+    ".png", ".jpg", ".jpeg", ".gif", ".ico", ".svg",
+    ".woff", ".woff2", ".ttf", ".eot",
+    ".mp3", ".mp4", ".wav", ".avi",
+    ".zip", ".tar", ".gz", ".7z"
+  ],
+  "allowed_domains": [
+    "example.com",
+    "test.example.org",
+    "localhost",
+    "127.0.0.1"
+  ],
+  "ci_integration": {
+    "github_actions": true,
+    "pre_commit_hook": true,
+    "fail_on_error": true,
+    "fail_on_warning": false
+  }
+}

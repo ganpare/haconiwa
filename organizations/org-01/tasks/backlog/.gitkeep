@@ -9,7 +9,7 @@ const .gitkeep: React.FC = () => {
       </CardHeader>
       <CardContent className="bg-card">
         {/* ディレクトリ構造の維持 */}
-        {/* 将来的なタスクファイルの配置場所として機能 */}
+        {/* 将来的なタスクブランチファイルの配置場所として機能 */}
       </CardContent>
     </Card>
   );

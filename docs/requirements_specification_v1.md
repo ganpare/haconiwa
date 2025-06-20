@@ -39,7 +39,7 @@ spec:                          # 仕様定義
 Haconiva v1で定義する6つのCRD：
 1. **Space** - World/Company/Room/Desk階層
 2. **Agent** - AIエージェント設定
-3. **Task** - Git worktreeタスク
+3. **Task** - Git worktreeタスクブランチ
 4. **PathScan** - ファイルスキャン設定
 5. **Database** - DB接続設定
 6. **CommandPolicy** - コマンド実行ポリシー
@@ -62,9 +62,9 @@ Haconiva v1で定義する6つのCRD：
 - 役割別設定（PM/Worker）
 
 #### 2.1.3 Task管理
-- ブランチベースのタスク管理
+- ブランチベースのタスクブランチ管理
 - Git worktreeとの連携
-- タスクの割り当て・完了管理
+- タスクブランチの割り当て・完了管理
 
 #### 2.1.4 Tool統合
 - ファイルパススキャン機能
@@ -168,7 +168,7 @@ spec:
 - 32デスク（4組織 × 〈PM1+Worker3〉× 2ルーム）の自動配置
 - tmuxグリッド（8x4）の自動設定
 - Gitリポジトリとの自動連携（SSH/HTTPS/Token認証対応）
-- 組織別タスク定義
+- 組織別タスクブランチ定義
 - 各デスクにエージェント設定の埋め込み
 
 #### 2.2.2 Agent CRD
@@ -688,7 +688,7 @@ roles:
 | Room | 部屋単位（サブセッション的な概念） |
 | Desk | 個別の作業席（tmuxペイン対応） |
 | Agent | AI エージェント（PM/Worker） |
-| Task | Git worktreeベースのタスク |
+| Task | Git worktreeベースのタスクブランチ |
 | CRD | Custom Resource Definition（Kubernetes風のリソース定義形式） |
 | PathScan | ファイルパススキャン設定 |
 | Database | データベース接続設定 |
@@ -791,7 +791,7 @@ organizations = [
 
 ---
 
-## 13. 実装計画・タスクリスト
+## 13. 実装計画・タスクブランチリスト
 
 ### 13.1 最優先実装: YAML Apply → 32ペイン作成
 

@@ -502,7 +502,7 @@ class TestCompanyBuild:
             "--name", company_name,
             "--base-path", str(base_path),
             "--org01-name", "テスト組織1",
-            "--task01", "テストタスク1",
+            "--task01", "テストタスクブランチ1",
             "--no-attach"
         ])
         
