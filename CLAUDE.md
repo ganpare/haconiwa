@@ -40,6 +40,16 @@ python voice-systems/gemini-tts/quick_tts_test.py "cryptographyパッケージ�
 python voice-systems/gemini-tts/quick_tts_test.py "設定ファイルが見つからないエラーです。指定されたパスに設定ファイルを作成する必要があります"
 ```
 
+### 【必須】Gitプッシュ前のブランチ戦略確認
+**Gitプッシュする前に、必ずブランチ戦略とCI/CD設定を確認してください。**
+
+- **確認ファイル**: [`docs/DEVELOPMENT_STRATEGY.md`](docs/DEVELOPMENT_STRATEGY.md)
+- **確認事項**: 
+  - 現在のブランチが適切なCI/CDワークフローを使用しているか
+  - インストール方法（`pip install -e .` vs `pip install haconiwa==x.x.x`）が正しいか
+  - バージョン更新が必要な場合は `scripts/bump_version.py` を使用したか
+- **重要**: ブランチ別の戦略に従わないと、CI/CDが失敗する可能性があります
+
 ### Path References
 - **NEVER use full paths** in documentation or code comments
 - Use relative paths or descriptive references instead
