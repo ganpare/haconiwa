@@ -65,11 +65,12 @@ class VersionBumper:
         file_path = self.project_root / "pyproject.toml"
         content = file_path.read_text()
         
-        # バージョン行を更新
+        # バージョン行のみを更新（tool.mypyやtool.pytestは除外）
         updated = re.sub(
-            r'version = "[^"]+"',
+            r'^version = "[^"]+"',
             f'version = "{new_version}"',
-            content
+            content,
+            flags=re.MULTILINE
         )
         
         file_path.write_text(updated)

@@ -136,7 +136,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # Install latest haconiwa version (should resolve all dependencies automatically)
-          pip install haconiwa==0.6.4-dev
+          pip install haconiwa==0.6.3
           # Verify installation and dependencies
           pip show haconiwa
           pip list | grep -E "(watchdog|haconiwa|cryptography|pandas)"
@@ -189,7 +189,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # Install latest haconiwa version from PyPI
-          pip install haconiwa==0.6.4-dev
+          pip install haconiwa==0.6.3
           # Verify installation
           pip show haconiwa
 
