@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
       - uses: actions/checkout@v3
@@ -116,7 +116,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
       - uses: actions/checkout@v3
@@ -138,7 +138,7 @@ jobs:
           # Install missing dependencies first
           pip install watchdog>=3.0.0 cryptography>=3.0.0 pandas>=1.0.0 matplotlib>=3.0.0 sqlalchemy>=1.4.0 packaging>=20.0
           # Install latest haconiwa version
-          pip install haconiwa==0.6.2
+          pip install haconiwa==0.6.3
           # Verify installation and dependencies
           pip show haconiwa
           pip list | grep -E "(watchdog|haconiwa|cryptography|pandas)"
@@ -170,7 +170,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.11"]  # 代表的なバージョンで実行
+        python-version: ["3.11", "3.12"]  # 代表的なバージョンで実行
 
     steps:
       - uses: actions/checkout@v3
