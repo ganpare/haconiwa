@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "haconiwa"
-version = "0.5.0"
+version = "0.6.2"
 description = "AI協調開発支援Python CLIツール - 箱庭での開発を支援"
 readme = "README.md"
 authors = [
@@ -35,6 +35,12 @@ dependencies = [
     "psutil>=5.9.0",
     "anyio>=3.7.0",
     "python-dotenv>=1.0.0",
+    "watchdog>=3.0.0",
+    "cryptography>=3.0.0",
+    "pandas>=1.0.0",
+    "matplotlib>=3.0.0",
+    "sqlalchemy>=1.4.0",
+    "packaging>=20.0",
 ]
 
 [project.optional-dependencies]
