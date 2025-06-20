@@ -1,10 +1,10 @@
-name: CI
+name: CI Production (Main Branch)
 
 on:
   push:
-    branches: [ "*" ]  # 全ブランチ対応
+    branches: [ "main" ]
   pull_request:
-    branches: [ "*" ]  # 全ブランチ対応
+    branches: [ "main" ]
 
 jobs:
   test:
@@ -136,7 +136,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # Install latest haconiwa version (should resolve all dependencies automatically)
-          pip install haconiwa==0.6.3
+          pip install haconiwa==0.6.4-dev
           # Verify installation and dependencies
           pip show haconiwa
           pip list | grep -E "(watchdog|haconiwa|cryptography|pandas)"
@@ -185,10 +185,13 @@ jobs:
           sudo apt-get install -y tmux git curl wget
           tmux -V
 
-      - name: Install haconiwa local development version
+      - name: Install haconiwa from PyPI
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
+          # Install latest haconiwa version from PyPI
+          pip install haconiwa==0.6.4-dev
+          # Verify installation
+          pip show haconiwa
 
       - name: Download YAML configuration from GitHub
         run: |
