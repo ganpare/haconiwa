@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-シンプル版コマンド実行許可システム
-キーボード入力のみでテスト
+シンプル版コマンド実行許可システム（警告音対応）
+キーボード入力 + クロスプラットフォーム警告音
 """
 
 import sys
@@ -21,6 +21,15 @@ try:
     load_dotenv()
 except ImportError:
     pass
+
+# 警告音システムをインポート
+sys.path.append(str(Path(__file__).parent.parent / "alert-sounds"))
+try:
+    from alert_system import AlertSystem
+    alert = AlertSystem()
+except ImportError:
+    alert = None
+    print("⚠️ 警告音システムが見つかりません")
 
 def save_binary_file(file_name, data):
     """バイナリファイルを保存"""
@@ -288,16 +297,16 @@ def main():
     
     if is_whitelisted:
         print("✅ ホワイトリストに含まれています - 許可済み")
-        # 通常の通知
-        try:
-            subprocess.run([
-                "osascript", "-e", 
-                f'display notification "許可されたコマンド: {command[:30]}..." with title "Claude Code ✅" sound name "Tink"'
-            ], check=True)
-        except:
-            pass
+        # 成功音を再生
+        if alert:
+            alert.play_success_sound()
+        print("🔊 成功音再生完了")
     else:
         print("⚠️ ホワイトリストに含まれていません - 注意が必要です")
+        # 警告音を再生
+        if alert:
+            alert.play_warning_sound()
+        print("🔊 警告音再生完了")
         
         # 音声で確認
         if description:
