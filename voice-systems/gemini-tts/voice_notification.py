@@ -191,35 +191,94 @@ def generate_speech(text: str, output_filename: str = None):
 
 
 def play_audio_file(filename: str):
-    """音声ファイルを再生（音量を下げて）"""
+    """音声ファイルを再生（クロスプラットフォーム対応）"""
+    import platform
+    
+    system = platform.system()
+    
     try:
-        # 音量を20%に下げて再生
-        subprocess.run(["afplay", "-v", "0.2", filename], check=True)
-        write_log(f"音声再生（音量20%）: {filename}")
+        if system == "Darwin":  # macOS
+            # 音量を20%に下げて再生
+            subprocess.run(["afplay", "-v", "0.2", filename], check=True)
+            write_log(f"音声再生（macOS, 音量20%）: {filename}")
+        elif system == "Linux":  # Linux/WSL
+            # ffplayを使用（音量調整付き）
+            subprocess.run([
+                "ffplay", "-nodisp", "-autoexit", "-v", "quiet", 
+                "-af", "volume=0.2", filename
+            ], check=True)
+            write_log(f"音声再生（Linux/WSL, 音量20%）: {filename}")
+        elif system == "Windows":  # Windows
+            # WindowsMediaPlayerやffplayを試行
+            try:
+                subprocess.run(["ffplay", "-nodisp", "-autoexit", "-v", "quiet", 
+                               "-af", "volume=0.2", filename], check=True)
+                write_log(f"音声再生（Windows, ffplay）: {filename}")
+            except FileNotFoundError:
+                # フォールバック: Windowsデフォルト音声再生
+                os.startfile(filename)
+                write_log(f"音声再生（Windows, デフォルト）: {filename}")
+        else:
+            error_msg = f"未対応のOS: {system}"
+            print(error_msg)
+            write_log(error_msg, "WARNING")
+            
     except subprocess.CalledProcessError as e:
         error_msg = f"音声再生エラー: {e}"
         print(error_msg)
         write_log(error_msg, "ERROR")
     except FileNotFoundError:
-        error_msg = "afplayコマンドが見つかりません（macOSでのみ利用可能）"
+        error_msg = f"音声再生ツールが見つかりません（OS: {system}）"
+        print(error_msg)
+        write_log(error_msg, "ERROR")
+    except Exception as e:
+        error_msg = f"予期しない音声再生エラー: {e}"
         print(error_msg)
         write_log(error_msg, "ERROR")
 
 
 def send_notification_with_voice(message: str, title: str = "Claude Code", sound: str = "Funk"):
-    """osascript通知と音声通知を同時に送信"""
+    """クロスプラットフォーム対応の通知と音声通知を同時に送信"""
+    import platform
+    
     write_log(f"通知開始 - タイトル: {title}, メッセージ: {message}")
     
-    # osascript通知を送信
-    notification_cmd = f'display notification "{message}" with title "{title}" sound name "{sound}"'
-    try:
-        subprocess.run(["osascript", "-e", notification_cmd], check=True)
-        print(f"通知送信: {message}")
-        write_log(f"osascript通知送信成功: {message}")
-    except subprocess.CalledProcessError as e:
-        error_msg = f"通知送信エラー: {e}"
-        print(error_msg)
-        write_log(error_msg, "ERROR")
+    system = platform.system()
+    
+    # プラットフォーム別通知
+    if system == "Darwin":  # macOS
+        notification_cmd = f'display notification "{message}" with title "{title}" sound name "{sound}"'
+        try:
+            subprocess.run(["osascript", "-e", notification_cmd], check=True)
+            print(f"通知送信（macOS）: {message}")
+            write_log(f"osascript通知送信成功: {message}")
+        except subprocess.CalledProcessError as e:
+            error_msg = f"通知送信エラー: {e}"
+            print(error_msg)
+            write_log(error_msg, "ERROR")
+    elif system == "Linux":  # Linux/WSL
+        try:
+            # notify-sendを試行（Ubuntu/Debianでは一般的）
+            subprocess.run(["notify-send", title, message], check=True)
+            print(f"通知送信（Linux）: {message}")
+            write_log(f"notify-send通知送信成功: {message}")
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            # WSLでは通知システムが使えない場合があるのでログのみ
+            print(f"WSL環境 - コンソール通知: [{title}] {message}")
+            write_log(f"WSL環境コンソール通知: {message}")
+    elif system == "Windows":  # Windows
+        try:
+            # PowerShellでWindows通知を送信
+            ps_cmd = f'[reflection.assembly]::loadwithpartialname("System.Windows.Forms");[System.Windows.Forms.MessageBox]::Show("{message}","{title}")'
+            subprocess.run(["powershell", "-Command", ps_cmd], check=True)
+            print(f"通知送信（Windows）: {message}")
+            write_log(f"Windows通知送信成功: {message}")
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            print(f"Windows - コンソール通知: [{title}] {message}")
+            write_log(f"Windows環境コンソール通知: {message}")
+    else:
+        print(f"未対応OS - コンソール通知: [{title}] {message}")
+        write_log(f"未対応OS({system})コンソール通知: {message}")
     
     # 音声を生成して再生
     print("音声生成中...")
