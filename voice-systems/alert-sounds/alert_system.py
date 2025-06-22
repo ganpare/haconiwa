@@ -80,14 +80,19 @@ class AlertSystem:
     def _generate_warning_tone(self):
         """Linux/WSL用の警告音をffplayで生成・再生"""
         try:
-            # ffplayで警告音のような音を生成
-            # 1000Hzと800Hzの組み合わせ
-            subprocess.run([
-                "ffplay", "-nodisp", "-autoexit", "-v", "quiet",
-                "-f", "lavfi", "-i", 
-                "sine=frequency=1000:duration=0.2,sine=frequency=800:duration=0.3",
-                "-af", "volume=0.3"
-            ], check=True, timeout=2)
+            # 実際の音声ファイルを使用
+            error_file = "/home/conta/media/error.wav"
+            if os.path.exists(error_file):
+                subprocess.run([
+                    "ffplay", "-nodisp", "-autoexit", "-v", "quiet",
+                    "-af", "volume=0.5", error_file
+                ], check=True, timeout=3)
+            else:
+                # フォールバック: 生成音
+                subprocess.run([
+                    "ffplay", "-f", "lavfi", "-i", "sine=frequency=1000:duration=0.5",
+                    "-nodisp", "-autoexit"
+                ], check=True, timeout=2, stderr=subprocess.DEVNULL)
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
             # フォールバック: ターミナルベル
             print("\a\a\a", end="", flush=True)
@@ -95,13 +100,19 @@ class AlertSystem:
     def _generate_success_tone(self):
         """Linux/WSL用の成功音をffplayで生成・再生"""
         try:
-            # ffplayで軽やかな成功音を生成
-            subprocess.run([
-                "ffplay", "-nodisp", "-autoexit", "-v", "quiet",
-                "-f", "lavfi", "-i", 
-                "sine=frequency=1200:duration=0.2",
-                "-af", "volume=0.2"
-            ], check=True, timeout=1)
+            # 実際の音声ファイルを使用
+            notice_file = "/home/conta/media/notice.wav"
+            if os.path.exists(notice_file):
+                subprocess.run([
+                    "ffplay", "-nodisp", "-autoexit", "-v", "quiet",
+                    "-af", "volume=0.4", notice_file
+                ], check=True, timeout=3)
+            else:
+                # フォールバック: 生成音
+                subprocess.run([
+                    "ffplay", "-f", "lavfi", "-i", "sine=frequency=1200:duration=0.3",
+                    "-nodisp", "-autoexit"
+                ], check=True, timeout=1, stderr=subprocess.DEVNULL)
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
             # フォールバック: ターミナルベル
             print("\a", end="", flush=True)
